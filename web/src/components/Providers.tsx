@@ -3,9 +3,10 @@
 import '@rainbow-me/rainbowkit/styles.css';
 import { getDefaultConfig, RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 import { WagmiProvider, http } from 'wagmi';
-import { base } from 'wagmi/chains';
+import { baseSepolia, optimismSepolia } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode, useState, useSyncExternalStore } from 'react';
+import { ConsoleErrorFilter } from '@/components/ConsoleErrorFilter';
 
 // SSR Fix: Mock localStorage for server-side execution
 if (typeof window === 'undefined') {
@@ -23,10 +24,11 @@ if (typeof window === 'undefined') {
 export const config = getDefaultConfig({
   appName: 'NexusFlow',
   projectId: 'YOUR_PROJECT_ID',
-  chains: [base],
+  chains: [baseSepolia, optimismSepolia],
   ssr: true,
   transports: {
-    [base.id]: http(),
+    [baseSepolia.id]: http(process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC),
+    [optimismSepolia.id]: http(process.env.NEXT_PUBLIC_OP_SEPOLIA_RPC),
   },
 });
 
@@ -48,6 +50,7 @@ export function Providers({ children }: { children: ReactNode }) {
           accentColor: '#22c55e',
           accentColorForeground: 'black',
         })}>
+          <ConsoleErrorFilter />
           {children}
         </RainbowKitProvider>
       </QueryClientProvider>

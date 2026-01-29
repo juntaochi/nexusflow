@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useWalletClient, useAccount } from 'wagmi';
 import { Hex } from 'viem';
 
@@ -9,7 +9,45 @@ export function use7702() {
   const { address } = useAccount();
   const { data: walletClient } = useWalletClient();
   const [isSigning, setIsSigning] = useState(false);
-  const [delegation, setDelegation] = useState<{ contractAddress: Hex; signature: string; address: string } | null>(null);
+
+  const storageKey = 'nexusflow:delegation:7702:v1';
+  type DelegationState = {
+    contractAddress: Hex;
+    signature: string;
+    address: string;
+    chainId: number;
+    createdAt: number;
+    expiresAt: number;
+  };
+
+  const [delegation, setDelegation] = useState<DelegationState | null>(null);
+
+  useEffect(() => {
+    if (!address) {
+      setDelegation(null);
+      return;
+    }
+
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as DelegationState;
+      if (!parsed?.address) return;
+      if (parsed.address.toLowerCase() !== address.toLowerCase()) return;
+      if (Date.now() > parsed.expiresAt) {
+        localStorage.removeItem(storageKey);
+        return;
+      }
+      setDelegation(parsed);
+    } catch {
+      // ignore
+    }
+  }, [address]);
+
+  const hasDelegated = useMemo(() => {
+    if (!delegation) return false;
+    return Date.now() <= delegation.expiresAt;
+  }, [delegation]);
 
   /**
    * Triggers the eth_signDelegation signature for a specific contract.
@@ -57,11 +95,21 @@ export function use7702() {
         }
       }
 
-      setDelegation({
+      const state: DelegationState = {
         contractAddress,
         signature,
         address,
-      });
+        chainId: walletClient.chain.id,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+      };
+
+      setDelegation(state);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(state));
+      } catch {
+        // ignore
+      }
       return signature;
     } catch (error) {
       console.error('7702 Delegation Error:', error);
@@ -71,10 +119,20 @@ export function use7702() {
     }
   };
 
+  const clearDelegation = () => {
+    setDelegation(null);
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {
+      // ignore
+    }
+  };
+
   return {
     signDelegation,
     isSigning,
     delegation,
-    hasDelegated: !!delegation,
+    hasDelegated,
+    clearDelegation,
   };
 }

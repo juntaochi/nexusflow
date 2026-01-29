@@ -1,218 +1,108 @@
 /**
  * x402 Client for NexusFlow Frontend
- * Handles automatic payment when calling x402-protected endpoints
+ * Uses Coinbase x402 core HTTP client to handle payments.
  */
 
-import { createWalletClient, custom, type Hex } from "viem";
-import { base, baseSepolia } from "viem/chains";
+import { x402Client } from "@x402/core/client";
+import { x402HTTPClient } from "@x402/core/http";
+import { registerExactEvmScheme } from "@x402/evm/exact/client";
+import type { Hex, WalletClient } from "viem";
 
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-    };
-  }
+export interface X402FetchResult {
+  response: Response;
+  paymentMade: boolean;
+  settlement?: unknown;
+  paymentRequired?: unknown;
 }
 
-// USDC ABI for transfer
-const USDC_ABI = [
-  {
-    name: "transfer",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "to", type: "address" },
-      { name: "amount", type: "uint256" },
-    ],
-    outputs: [{ name: "", type: "bool" }],
-  },
-  {
-    name: "approve",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "spender", type: "address" },
-      { name: "amount", type: "uint256" },
-    ],
-    outputs: [{ name: "", type: "bool" }],
-  },
-] as const;
+type X402Signer = {
+  address: Hex;
+  signMessage: (args: { message: string | Uint8Array }) => Promise<Hex>;
+  signTypedData: (args: {
+    domain: Record<string, unknown>;
+    types: Record<string, Array<{ name: string; type: string }>>;
+    message: Record<string, unknown>;
+    primaryType: string;
+  }) => Promise<Hex>;
+};
 
-export interface X402PaymentOption {
-  scheme: string;
-  network: string;
-  asset: string;
-  payTo: string;
-  maxAmountRequired: string;
-  resource: string;
-  description: string;
-}
-
-export interface X402ClientConfig {
-  autoPayMaxUSDC?: number; // Max amount to auto-pay (default: 0.10)
-  preferredNetwork?: "base" | "base-sepolia";
-}
-
-/**
- * Parse 402 response and extract payment options
- */
-export function parse402Response(response: Response): X402PaymentOption[] | null {
-  const paymentHeader = response.headers.get("X-Payment-Options");
-  if (paymentHeader) {
-    try {
-      return JSON.parse(paymentHeader);
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-/**
- * Make a payment for x402 request
- */
-export async function makeX402Payment(
-  option: X402PaymentOption,
-  userAddress: Hex
-): Promise<{ payload: string; signature: string; txHash: string }> {
-  if (typeof window === "undefined" || !window.ethereum) {
-    throw new Error("Wallet not available");
+const createSigner = (walletClient: WalletClient): X402Signer => {
+  const account = walletClient.account;
+  if (!account) {
+    throw new Error("Wallet account is required for x402 payments.");
   }
 
-  const chain = option.network === "base" ? base : baseSepolia;
-  
-  // Get USDC contract address
-  const usdcAddress = option.network === "base" 
-    ? "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-    : "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+  return {
+    address: account.address as Hex,
+    signMessage: ({ message }) =>
+      walletClient.signMessage({ account, message }),
+    signTypedData: ({ domain, types, message, primaryType }) =>
+      walletClient.signTypedData({
+        account,
+        domain,
+        types,
+        message,
+        primaryType,
+      }),
+  };
+};
 
-  // Create wallet client
-  const walletClient = createWalletClient({
-    chain,
-    transport: custom(window.ethereum),
-  });
+export const createX402HttpClient = (walletClient: WalletClient) => {
+  const coreClient = new x402Client();
+  registerExactEvmScheme(coreClient, { signer: createSigner(walletClient) });
+  return new x402HTTPClient(coreClient);
+};
 
-  // Convert USDC amount (6 decimals)
-  const amount = BigInt(Math.floor(parseFloat(option.maxAmountRequired) * 1e6));
-
-  // Execute transfer
-  const txHash = await walletClient.writeContract({
-    address: usdcAddress as Hex,
-    abi: USDC_ABI,
-    functionName: "transfer",
-    args: [option.payTo as Hex, amount],
-    account: userAddress,
-  });
-
-  // Create payment payload
-  const payload = Buffer.from(
-    JSON.stringify({
-      payer: userAddress,
-      payTo: option.payTo,
-      amount: amount.toString(),
-      asset: option.asset,
-      network: option.network,
-      txHash,
-      timestamp: Date.now(),
-      resource: option.resource,
-    })
-  ).toString("base64");
-
-  // Sign the payload
-  const signature = await walletClient.signMessage({
-    account: userAddress,
-    message: payload,
-  });
-
-  return { payload, signature, txHash };
-}
-
-/**
- * Create X-PAYMENT header from payment result
- */
-export function createPaymentHeader(payment: {
-  payload: string;
-  signature: string;
-}): string {
-  return Buffer.from(
-    JSON.stringify({
-      payload: payment.payload,
-      signature: payment.signature,
-    })
-  ).toString("base64");
-}
+const mergeHeaders = (base?: HeadersInit, extra?: HeadersInit) => {
+  const headers = new Headers(base || {});
+  if (extra) {
+    const extraHeaders = new Headers(extra);
+    extraHeaders.forEach((value, key) => headers.set(key, value));
+  }
+  return headers;
+};
 
 /**
  * Fetch with automatic x402 payment handling
  */
 export async function fetchWithX402(
   url: string,
-  options: RequestInit & {
-    userAddress?: Hex;
-    autoPayMaxUSDC?: number;
-  } = {}
-): Promise<{
-  response: Response;
-  paymentMade: boolean;
-  paymentAmount?: string;
-  txHash?: string;
-}> {
-  const { userAddress, autoPayMaxUSDC = 0.10, ...fetchOptions } = options;
+  options: RequestInit = {},
+  walletClient?: WalletClient
+): Promise<X402FetchResult> {
+  const response = await fetch(url, options);
 
-  // Make initial request
-  let response = await fetch(url, fetchOptions);
-
-  // Check if 402 response
-  if (response.status === 402 && userAddress) {
-    const paymentOptions = parse402Response(response);
-    
-    if (paymentOptions && paymentOptions.length > 0) {
-      const option = paymentOptions[0];
-      const requiredAmount = parseFloat(option.maxAmountRequired);
-
-      // Check if within auto-pay limit
-      if (requiredAmount <= autoPayMaxUSDC) {
-        try {
-          // Make payment
-          const payment = await makeX402Payment(option, userAddress);
-
-          // Retry request with payment header
-          const paymentHeader = createPaymentHeader(payment);
-          response = await fetch(url, {
-            ...fetchOptions,
-            headers: {
-              ...fetchOptions.headers,
-              "X-PAYMENT": paymentHeader,
-            },
-          });
-
-          return {
-            response,
-            paymentMade: true,
-            paymentAmount: option.maxAmountRequired,
-            txHash: payment.txHash,
-          };
-        } catch (error) {
-          console.error("x402 payment failed:", error);
-        }
-      }
-    }
+  if (response.status !== 402 || !walletClient) {
+    return { response, paymentMade: false };
   }
 
-  return {
-    response,
-    paymentMade: false,
-  };
-}
+  try {
+    const httpClient = createX402HttpClient(walletClient);
+    const paymentRequired = httpClient.getPaymentRequiredResponse(
+      (name) => response.headers.get(name),
+      await response.json()
+    );
 
-/**
- * React hook for x402 payments
- */
-export function useX402Config(userAddress?: Hex) {
-  return {
-    fetch: (url: string, options?: RequestInit) =>
-      fetchWithX402(url, { ...options, userAddress }),
-    makePayment: (option: X402PaymentOption) =>
-      userAddress ? makeX402Payment(option, userAddress) : Promise.reject("No wallet"),
-  };
+    const paymentPayload = await httpClient.createPaymentPayload(paymentRequired);
+    const paymentHeaders = httpClient.encodePaymentSignatureHeader(paymentPayload);
+
+    const paidResponse = await fetch(url, {
+      ...options,
+      headers: mergeHeaders(options.headers, paymentHeaders),
+    });
+
+    const settlement = httpClient.getPaymentSettleResponse((name) =>
+      paidResponse.headers.get(name)
+    );
+
+    return {
+      response: paidResponse,
+      paymentMade: true,
+      settlement,
+      paymentRequired,
+    };
+  } catch (error) {
+    console.error("x402 payment failed:", error);
+    return { response, paymentMade: false };
+  }
 }

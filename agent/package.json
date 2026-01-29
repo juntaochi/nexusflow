@@ -22,6 +22,8 @@
     "@langchain/core": "^0.3.80",
     "@langchain/langgraph": "^1.1.2",
     "@langchain/openai": "^0.3.17",
+    "dotenv": "^16.6.1",
+    "graphql": "^16.11.0",
     "viem": "^2.45.0"
   },
   "devDependencies": {

@@ -1,248 +1,195 @@
 /**
- * x402 Server Middleware for NexusFlow
- * Enables pay-per-intent monetization
+ * x402 Server Helpers for NexusFlow
+ * Implements Coinbase x402 resource server flows for Next.js routes.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { verifyMessage, type Hex } from "viem";
+import { x402ResourceServer, HTTPFacilitatorClient } from "@x402/core/server";
+import { ExactEvmScheme } from "@x402/evm/exact/server";
+import type { Hex } from "viem";
 import { base, baseSepolia } from "viem/chains";
 
-// x402 Payment Configuration
+export type X402NetworkId = "eip155:8453" | "eip155:84532";
+
 export interface X402Config {
-  payTo: Hex; // NexusFlow treasury address
-  asset: "USDC" | "USDT";
-  network: "base" | "base-sepolia";
-  priceUSDC: string; // Price per request in USDC (e.g., "0.01")
-  facilitator?: string;
+  payTo: Hex;
+  network: X402NetworkId;
+  priceUsd: string; // e.g. "0.001"
+  description: string;
+  mimeType?: string;
 }
 
-// x402 Payment Option (returned in 402 response)
-export interface X402PaymentOption {
+export interface X402PaymentRequirement {
   scheme: "exact";
   network: string;
-  asset: string;
   payTo: string;
-  maxAmountRequired: string;
-  resource: string;
-  description: string;
-  mimeType: string;
-  outputSchema: string;
-  extra?: {
-    name?: string;
-    version?: number;
-  };
+  price: string;
 }
 
-// x402 Payment Header (from client)
-export interface X402PaymentHeader {
-  payload: string;
-  signature: string;
-}
-
-// USDC contract addresses
-const USDC_ADDRESSES = {
-  base: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-  "base-sepolia": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-} as const;
-
-/**
- * Default x402 configuration for NexusFlow
- */
-export const DEFAULT_X402_CONFIG: X402Config = {
-  payTo: "0x0000000000000000000000000000000000000000" as Hex, // Replace with actual treasury
-  asset: "USDC",
-  network: "base-sepolia",
-  priceUSDC: "0.001", // $0.001 per intent (cheap for testing)
+const NETWORK_METADATA: Record<X402NetworkId, { name: string; chainId: number; usdc: Hex }> = {
+  "eip155:8453": {
+    name: "base",
+    chainId: base.id,
+    usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  },
+  "eip155:84532": {
+    name: "base-sepolia",
+    chainId: baseSepolia.id,
+    usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+  },
 };
 
-/**
- * Create a 402 Payment Required response
- */
-export function create402Response(
-  config: X402Config,
-  resource: string,
-  description: string
-): NextResponse {
-  const paymentOption: X402PaymentOption = {
-    scheme: "exact",
-    network: config.network,
-    asset: config.asset,
-    payTo: config.payTo,
-    maxAmountRequired: config.priceUSDC,
-    resource,
-    description,
-    mimeType: "application/json",
-    outputSchema: "{}",
-    extra: {
-      name: "NexusFlow Intent Execution",
-      version: 1,
-    },
-  };
+const facilitatorUrl =
+  process.env.X402_FACILITATOR_URL || "https://x402.org/facilitator";
 
-  return new NextResponse(
-    JSON.stringify({
-      error: "Payment Required",
-      message: `This endpoint requires ${config.priceUSDC} ${config.asset} payment`,
-      x402Version: 1,
-      accepts: [paymentOption],
-    }),
-    {
-      status: 402,
-      headers: {
-        "Content-Type": "application/json",
-        "X-Payment-Required": "true",
-        "X-Payment-Options": JSON.stringify([paymentOption]),
-      },
-    }
-  );
-}
+const resourceServer = new x402ResourceServer(
+  new HTTPFacilitatorClient({ url: facilitatorUrl })
+).register("eip155:*", new ExactEvmScheme());
 
-/**
- * Parse X-PAYMENT header from request
- */
-export function parsePaymentHeader(
-  request: NextRequest
-): X402PaymentHeader | null {
-  const paymentHeader = request.headers.get("X-PAYMENT");
-  if (!paymentHeader) return null;
+let initializePromise: Promise<void> | null = null;
 
-  try {
-    // Header format: base64(JSON({payload, signature}))
-    const decoded = JSON.parse(Buffer.from(paymentHeader, "base64").toString());
-    return {
-      payload: decoded.payload,
-      signature: decoded.signature,
-    };
-  } catch {
-    // Try direct JSON parse
-    try {
-      return JSON.parse(paymentHeader);
-    } catch {
-      return null;
-    }
+async function ensureInitialized() {
+  if (!initializePromise) {
+    initializePromise = resourceServer.initialize();
   }
+  await initializePromise;
 }
 
-/**
- * Verify x402 payment on-chain
- */
-export async function verifyPayment(
-  payment: X402PaymentHeader,
+export const formatX402Price = (priceUsd: string): string => {
+  const trimmed = priceUsd.trim();
+  return trimmed.startsWith("$") ? trimmed : `$${trimmed}`;
+};
+
+export const buildX402Requirement = (
   config: X402Config
-): Promise<{ valid: boolean; payer?: string; txHash?: string; error?: string }> {
-  try {
-    // Decode payment payload
-    const payloadData = JSON.parse(
-      Buffer.from(payment.payload, "base64").toString()
+): X402PaymentRequirement => ({
+  scheme: "exact",
+  network: config.network,
+  payTo: config.payTo,
+  price: formatX402Price(config.priceUsd),
+});
+
+export const encodeBase64Json = (value: unknown): string =>
+  Buffer.from(JSON.stringify(value)).toString("base64");
+
+export const decodeBase64Json = <T>(value: string): T =>
+  JSON.parse(Buffer.from(value, "base64").toString("utf-8")) as T;
+
+const getPaymentHeader = (request: NextRequest): string | null =>
+  request.headers.get("payment-signature") ?? request.headers.get("x-payment");
+
+export async function verifyX402Payment(
+  request: NextRequest,
+  config: X402Config
+): Promise<
+  | { ok: false; response: NextResponse }
+  | {
+      ok: true;
+      settlement: unknown;
+      paymentPayload: unknown;
+      requirement: X402PaymentRequirement;
+    }
+> {
+  await ensureInitialized();
+
+  const requirement = buildX402Requirement(config);
+  const paymentHeader = getPaymentHeader(request);
+
+  if (!paymentHeader) {
+    const paymentRequired = resourceServer.createPaymentRequiredResponse(
+      [requirement],
+      {
+        url: request.url,
+        description: config.description,
+        mimeType: config.mimeType ?? "application/json",
+      }
     );
 
-    // Verify signature
-    const message = payment.payload;
-    const isValidSig = await verifyMessage({
-      address: payloadData.payer as Hex,
-      message,
-      signature: payment.signature as Hex,
-    });
-
-    if (!isValidSig) {
-      return { valid: false, error: "Invalid signature" };
-    }
-
-    // Verify payment amount and recipient
-    if (payloadData.payTo.toLowerCase() !== config.payTo.toLowerCase()) {
-      return { valid: false, error: "Invalid payment recipient" };
-    }
-
-    const requiredAmount = BigInt(
-      Math.floor(parseFloat(config.priceUSDC) * 1e6)
-    );
-    const paidAmount = BigInt(payloadData.amount);
-
-    if (paidAmount < requiredAmount) {
-      return { valid: false, error: "Insufficient payment amount" };
-    }
-
-    // In production, you would also verify the on-chain transaction
-    // For hackathon, we trust the signed payload
     return {
-      valid: true,
-      payer: payloadData.payer,
-      txHash: payloadData.txHash,
-    };
-  } catch (error) {
-    return {
-      valid: false,
-      error: error instanceof Error ? error.message : "Verification failed",
-    };
-  }
-}
-
-/**
- * x402 middleware wrapper for Next.js API routes
- */
-export function withX402(
-  handler: (
-    request: NextRequest,
-    paymentInfo?: { payer: string; txHash?: string }
-  ) => Promise<NextResponse>,
-  config: X402Config = DEFAULT_X402_CONFIG
-) {
-  return async (request: NextRequest): Promise<NextResponse> => {
-    // Check for payment header
-    const payment = parsePaymentHeader(request);
-
-    if (!payment) {
-      // No payment provided - return 402
-      const url = new URL(request.url);
-      return create402Response(
-        config,
-        url.pathname,
-        "NexusFlow Intent Execution - Pay per intent"
-      );
-    }
-
-    // Verify payment
-    const verification = await verifyPayment(payment, config);
-
-    if (!verification.valid) {
-      return new NextResponse(
+      ok: false,
+      response: new NextResponse(
         JSON.stringify({
-          error: "Payment Invalid",
-          message: verification.error,
+          error: "Payment Required",
+          message: "This endpoint requires payment",
         }),
         {
           status: 402,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "PAYMENT-REQUIRED": encodeBase64Json(paymentRequired),
+          },
         }
-      );
-    }
+      ),
+    };
+  }
 
-    // Payment valid - proceed with handler
-    return handler(request, {
-      payer: verification.payer!,
-      txHash: verification.txHash,
-    });
-  };
+  let paymentPayload: unknown;
+  try {
+    paymentPayload = decodeBase64Json(paymentHeader);
+  } catch {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Invalid Payment", reason: "Malformed payment payload" },
+        { status: 402 }
+      ),
+    };
+  }
+
+  const verifyResult = await resourceServer.verifyPayment(
+    paymentPayload,
+    requirement
+  );
+
+  if (!verifyResult.isValid) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Invalid Payment", reason: verifyResult.invalidReason },
+        { status: 402 }
+      ),
+    };
+  }
+
+  const settlement = await resourceServer.settlePayment(
+    paymentPayload,
+    requirement
+  );
+
+  return { ok: true, settlement, paymentPayload, requirement };
 }
 
-/**
- * Create x402 payment info for client
- */
+export function withPaymentResponseHeader(
+  response: Response,
+  settlement: unknown
+): Response {
+  const headers = new Headers(response.headers);
+  headers.set("PAYMENT-RESPONSE", encodeBase64Json(settlement));
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export function createPaymentInfo(config: X402Config): {
   payTo: string;
-  amount: string;
-  asset: string;
+  asset: "USDC";
   network: string;
+  networkId: string;
   chainId: number;
   tokenAddress: string;
+  priceUsd: string;
 } {
-  const chain = config.network === "base" ? base : baseSepolia;
+  const network = NETWORK_METADATA[config.network];
+
   return {
     payTo: config.payTo,
-    amount: config.priceUSDC,
-    asset: config.asset,
-    network: config.network,
-    chainId: chain.id,
-    tokenAddress: USDC_ADDRESSES[config.network],
+    asset: "USDC",
+    network: network.name,
+    networkId: config.network,
+    chainId: network.chainId,
+    tokenAddress: network.usdc,
+    priceUsd: config.priceUsd,
   };
 }

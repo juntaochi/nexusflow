@@ -4,8 +4,9 @@
  */
 
 import { ViemWalletProvider } from "@coinbase/agentkit";
-import { Address, encodeFunctionData, parseEther } from "viem";
+import { Address, encodeFunctionData, parseUnits } from "viem";
 import { DeFiMonitor } from "../cron/monitor";
+import { getSuperchainConfig } from "../superchain.js";
 
 // NexusDelegation contract ABI
 const NEXUS_DELEGATION_ABI = [
@@ -32,32 +33,17 @@ const NEXUS_DELEGATION_ABI = [
   },
 ] as const;
 
-// Chain IDs
-const CHAIN_IDS: Record<string, number> = {
-  Base: 8453,
-  Optimism: 10,
-  "base-sepolia": 84532,
-  "optimism-sepolia": 11155420,
-};
+const resolveChainConfig = (label: string) => {
+  const config = getSuperchainConfig();
+  const match = Object.values(config).find(
+    (chain) => chain.label.toLowerCase() === label.toLowerCase()
+  );
 
-// Protocol addresses (update with actual addresses)
-const PROTOCOL_ADDRESSES: Record<string, Record<string, Address>> = {
-  Base: {
-    aave: "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5" as Address,
-    usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as Address,
-  },
-  Optimism: {
-    aave: "0x794a61358D6845594F94dc1DB02A252b5b4814aD" as Address,
-    usdc: "0x7F5c764cBc14f9669B88837ca1490cCa17c31607" as Address,
-  },
-  "base-sepolia": {
-    aave: "0x0000000000000000000000000000000000000001" as Address,
-    usdc: "0x0000000000000000000000000000000000000002" as Address,
-  },
-  "optimism-sepolia": {
-    aave: "0x0000000000000000000000000000000000000003" as Address,
-    usdc: "0x0000000000000000000000000000000000000004" as Address,
-  },
+  if (!match) {
+    throw new Error(`Unsupported chain label: ${label}`);
+  }
+
+  return match;
 };
 
 export interface ArbitrageOpportunity {
@@ -65,6 +51,8 @@ export interface ArbitrageOpportunity {
   sourceChain: string;
   targetChain: string;
   token: string;
+  sourceProtocol: "Aave V3" | "Compound V3";
+  targetProtocol: "Aave V3" | "Compound V3";
   sourceApy: number;
   targetApy: number;
   spread: number;
@@ -144,6 +132,7 @@ export class ArbitrageExecutor {
       // Step 1: Withdraw from source protocol
       const withdrawResult = await this.withdrawFromProtocol(
         opportunity.sourceChain,
+        opportunity.sourceProtocol,
         "0.1" // Demo amount
       );
 
@@ -177,6 +166,7 @@ export class ArbitrageExecutor {
       // Step 3: Deposit to target protocol
       const depositResult = await this.depositToProtocol(
         opportunity.targetChain,
+        opportunity.targetProtocol,
         "0.1"
       );
 
@@ -212,37 +202,55 @@ export class ArbitrageExecutor {
    */
   private async withdrawFromProtocol(
     chain: string,
+    protocol: "Aave V3" | "Compound V3",
     amount: string
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      const addresses = PROTOCOL_ADDRESSES[chain];
-      if (!addresses) {
-        throw new Error(`Unsupported chain: ${chain}`);
-      }
+      const chainConfig = resolveChainConfig(chain);
+      const { contracts } = chainConfig;
+      const parsedAmount = parseUnits(amount, contracts.tokenDecimals);
 
-      // Build withdraw calldata (Aave withdraw)
-      const withdrawData = encodeFunctionData({
-        abi: [
-          {
-            name: "withdraw",
-            type: "function",
-            inputs: [
-              { name: "asset", type: "address" },
-              { name: "amount", type: "uint256" },
-              { name: "to", type: "address" },
-            ],
-            outputs: [{ type: "uint256" }],
-          },
-        ],
-        functionName: "withdraw",
-        args: [addresses.usdc, parseEther(amount), this.userEOA],
-      });
+      const targetContract =
+        protocol === "Aave V3" ? contracts.aavePool : contracts.compoundComet;
+      const withdrawData =
+        protocol === "Aave V3"
+          ? encodeFunctionData({
+              abi: [
+                {
+                  name: "withdraw",
+                  type: "function",
+                  inputs: [
+                    { name: "asset", type: "address" },
+                    { name: "amount", type: "uint256" },
+                    { name: "to", type: "address" },
+                  ],
+                  outputs: [{ type: "uint256" }],
+                },
+              ],
+              functionName: "withdraw",
+              args: [contracts.superchainErc20, parsedAmount, this.userEOA],
+            })
+          : encodeFunctionData({
+              abi: [
+                {
+                  name: "withdraw",
+                  type: "function",
+                  inputs: [
+                    { name: "asset", type: "address" },
+                    { name: "amount", type: "uint256" },
+                  ],
+                  outputs: [],
+                },
+              ],
+              functionName: "withdraw",
+              args: [contracts.superchainErc20, parsedAmount],
+            });
 
       // Execute via NexusDelegation
       const data = encodeFunctionData({
         abi: NEXUS_DELEGATION_ABI,
         functionName: "executeIntent",
-        args: [addresses.aave, withdrawData],
+        args: [targetContract, withdrawData],
       });
 
       const hash = await this.walletProvider.sendTransaction({
@@ -269,36 +277,38 @@ export class ArbitrageExecutor {
     amount: string
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      const sourceAddresses = PROTOCOL_ADDRESSES[sourceChain];
-      const targetChainId = CHAIN_IDS[targetChain];
+      const source = resolveChainConfig(sourceChain);
+      const destination = resolveChainConfig(targetChain);
 
-      if (!sourceAddresses || !targetChainId) {
-        throw new Error(`Invalid chain config: ${sourceChain} -> ${targetChain}`);
-      }
+      const parsedAmount = parseUnits(amount, source.contracts.tokenDecimals);
 
-      // Build cross-chain bridge calldata
       const bridgeData = encodeFunctionData({
         abi: [
           {
-            name: "crosschainBurn",
+            name: "bridge",
             type: "function",
             inputs: [
-              { name: "amount", type: "uint256" },
-              { name: "toChainId", type: "uint256" },
-              { name: "recipient", type: "address" },
+              { name: "_token", type: "address" },
+              { name: "_to", type: "address" },
+              { name: "_amount", type: "uint256" },
+              { name: "_destinationChainId", type: "uint256" },
             ],
             outputs: [],
           },
         ],
-        functionName: "crosschainBurn",
-        args: [parseEther(amount), BigInt(targetChainId), this.userEOA],
+        functionName: "bridge",
+        args: [
+          source.contracts.superchainErc20,
+          this.userEOA,
+          parsedAmount,
+          BigInt(destination.chainId),
+        ],
       });
 
-      // Execute via NexusDelegation.sendCrossChainIntent
       const data = encodeFunctionData({
         abi: NEXUS_DELEGATION_ABI,
-        functionName: "sendCrossChainIntent",
-        args: [BigInt(targetChainId), sourceAddresses.usdc, bridgeData],
+        functionName: "executeIntent",
+        args: [source.contracts.crosschainBridge, bridgeData],
       });
 
       const hash = await this.walletProvider.sendTransaction({
@@ -321,38 +331,57 @@ export class ArbitrageExecutor {
    */
   private async depositToProtocol(
     chain: string,
+    protocol: "Aave V3" | "Compound V3",
     amount: string
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      const addresses = PROTOCOL_ADDRESSES[chain];
-      if (!addresses) {
-        throw new Error(`Unsupported chain: ${chain}`);
-      }
+      const chainConfig = resolveChainConfig(chain);
+      const { contracts } = chainConfig;
+      const parsedAmount = parseUnits(amount, contracts.tokenDecimals);
 
-      // Build deposit calldata (Aave supply)
-      const depositData = encodeFunctionData({
-        abi: [
-          {
-            name: "supply",
-            type: "function",
-            inputs: [
-              { name: "asset", type: "address" },
-              { name: "amount", type: "uint256" },
-              { name: "onBehalfOf", type: "address" },
-              { name: "referralCode", type: "uint16" },
-            ],
-            outputs: [],
-          },
-        ],
-        functionName: "supply",
-        args: [addresses.usdc, parseEther(amount), this.userEOA, 0],
-      });
+      const targetContract =
+        protocol === "Aave V3" ? contracts.aavePool : contracts.compoundComet;
+
+      const depositData =
+        protocol === "Aave V3"
+          ? encodeFunctionData({
+              abi: [
+                {
+                  name: "supply",
+                  type: "function",
+                  inputs: [
+                    { name: "asset", type: "address" },
+                    { name: "amount", type: "uint256" },
+                    { name: "onBehalfOf", type: "address" },
+                    { name: "referralCode", type: "uint16" },
+                  ],
+                  outputs: [],
+                },
+              ],
+              functionName: "supply",
+              args: [contracts.superchainErc20, parsedAmount, this.userEOA, 0],
+            })
+          : encodeFunctionData({
+              abi: [
+                {
+                  name: "supply",
+                  type: "function",
+                  inputs: [
+                    { name: "asset", type: "address" },
+                    { name: "amount", type: "uint256" },
+                  ],
+                  outputs: [],
+                },
+              ],
+              functionName: "supply",
+              args: [contracts.superchainErc20, parsedAmount],
+            });
 
       // Execute via NexusDelegation
       const data = encodeFunctionData({
         abi: NEXUS_DELEGATION_ABI,
         functionName: "executeIntent",
-        args: [addresses.aave, depositData],
+        args: [targetContract, depositData],
       });
 
       const hash = await this.walletProvider.sendTransaction({

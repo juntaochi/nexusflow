@@ -9,7 +9,9 @@ import "../src/AgentRegistry.sol";
 
 contract DeploySuperchain is Script {
     function run() external {
-        uint256 deployerPrivateKey = vm.envOr("PRIVATE_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80));
+        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
+        address treasury = vm.envOr("TREASURY_ADDRESS", address(0));
+        uint256 treasuryMint = vm.envOr("TREASURY_MINT", uint256(0));
         vm.startBroadcast(deployerPrivateKey);
 
         // Deploy NexusDelegation
@@ -32,9 +34,10 @@ contract DeploySuperchain is Script {
         nusd.setBridge(address(bridge));
         console.log("Bridge set in NexusUSD");
 
-        // Example: Support Base Sepolia (if we are on OP Sepolia)
-        // bridge.addSupportedChain(84532, address(bridge)); // Assuming same address via CREATE2
-        // bridge.mapToken(84532, address(nusd), address(nusd));
+        if (treasury != address(0) && treasuryMint > 0) {
+            nusd.mint(treasury, treasuryMint);
+            console.log("Treasury minted:", treasury, treasuryMint);
+        }
 
         vm.stopBroadcast();
     }

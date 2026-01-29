@@ -28,6 +28,7 @@ lerna-debug.log*
 .vscode/
 *.swp
 *.swo
+.factory/
 
 # Build outputs
 dist/
@@ -40,3 +41,4 @@ coverage/
 cache/
 broadcast/
 /doc
+AGENTS.md

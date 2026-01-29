@@ -6,7 +6,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import { ISuccessResult } from '@worldcoin/idkit';
-import { Address } from 'viem';
+import { Address, decodeEventLog } from 'viem';
 
 // AgentRegistry contract ABI (minimal)
 const AGENT_REGISTRY_ABI = [
@@ -61,6 +61,18 @@ const AGENT_REGISTRY_ABI = [
       { name: 'delta', type: 'int256' },
     ],
     outputs: [],
+  },
+] as const;
+
+const AGENT_REGISTERED_EVENT_ABI = [
+  {
+    type: 'event',
+    name: 'AgentRegistered',
+    inputs: [
+      { name: 'agentId', type: 'uint256', indexed: true },
+      { name: 'controller', type: 'address', indexed: true },
+      { name: 'name', type: 'string', indexed: false },
+    ],
   },
 ] as const;
 
@@ -191,6 +203,10 @@ export function useAgentIdentity() {
       throw new Error('Wallet not connected');
     }
 
+    if (AGENT_REGISTRY_ADDRESS.toLowerCase() === '0x0000000000000000000000000000000000000000') {
+      throw new Error('AgentRegistry address not configured (NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS)');
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -218,10 +234,51 @@ export function useAgentIdentity() {
       });
 
       // Wait for transaction
-      await publicClient.waitForTransactionReceipt({ hash });
-      
-      // Extract agentId from logs (simplified)
-      const agentId = BigInt(1); // In production, parse from event logs
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+      // If the call reverted, this may still return a receipt; fail fast with a clear message.
+      if (receipt.status !== 'success') {
+        throw new Error('Agent registration transaction reverted');
+      }
+
+      // Prefer extracting agentId from the AgentRegistered event.
+      let agentId: bigint | null = null;
+      for (const log of receipt.logs) {
+        if (log.address.toLowerCase() !== AGENT_REGISTRY_ADDRESS.toLowerCase()) continue;
+        try {
+          const decoded = decodeEventLog({
+            abi: AGENT_REGISTERED_EVENT_ABI,
+            data: log.data,
+            topics: log.topics,
+          });
+
+          if (decoded.eventName !== 'AgentRegistered') continue;
+          const controller = (decoded.args as unknown as { controller: Address }).controller;
+          if (controller.toLowerCase() !== address.toLowerCase()) continue;
+
+          agentId = (decoded.args as unknown as { agentId: bigint }).agentId;
+          break;
+        } catch {
+          // ignore unrelated logs
+        }
+      }
+
+      // Fallback: read from storage mapping.
+      if (agentId === null) {
+        const fromState = await publicClient.readContract({
+          address: AGENT_REGISTRY_ADDRESS,
+          abi: AGENT_REGISTRY_ABI,
+          functionName: 'agentIdByController',
+          args: [address],
+        });
+        agentId = fromState === BigInt(0) ? null : (fromState as bigint);
+      }
+
+      if (agentId === null) {
+        throw new Error(
+          'Registration TX succeeded but no AgentRegistered event or agentId was found. Check you are on Base/OP Sepolia and NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS matches the deployed registry on that chain.'
+        );
+      }
 
       // Refresh identity
       await fetchAgentIdentity();

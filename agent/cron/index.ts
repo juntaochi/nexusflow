@@ -3,13 +3,21 @@
  * Wires arbitrage monitor to executor
  */
 
+import path from "node:path";
+import dotenv from "dotenv";
 import { DeFiMonitor } from "./monitor";
 import { ArbitrageExecutor } from "../executor/arbitrage";
 import { AgentKit, ViemWalletProvider } from "@coinbase/agentkit";
 import { createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { base } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 import { Address } from "viem";
+
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+dotenv.config({
+  path: path.resolve(process.cwd(), "..", ".env"),
+  override: false,
+});
 
 const MONITOR_INTERVAL = 30000; // 30 seconds
 const USER_EOA_ADDRESS = (process.env.USER_EOA_ADDRESS ||
@@ -30,10 +38,14 @@ export async function startArbitrageService() {
   }
 
   const account = privateKeyToAccount(privateKey);
+  const baseRpc = process.env.BASE_SEPOLIA_RPC || process.env.BASE_SEPOLIA_RPC_URL;
+  if (!baseRpc) {
+    throw new Error("BASE_SEPOLIA_RPC is required for cron execution.");
+  }
   const client = createWalletClient({
     account,
-    chain: base,
-    transport: http(),
+    chain: baseSepolia,
+    transport: http(baseRpc),
   });
 
   const walletProvider = new ViemWalletProvider(client as any);

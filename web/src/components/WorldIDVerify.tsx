@@ -2,7 +2,8 @@
 
 import { useState, useCallback } from 'react';
 import { IDKitWidget, VerificationLevel, ISuccessResult } from '@worldcoin/idkit';
-import { Shield, CheckCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 
 interface WorldIDVerifyProps {
   onVerified: (proof: ISuccessResult) => void;
@@ -29,7 +30,7 @@ export function WorldIDVerify({ onVerified, disabled }: WorldIDVerifyProps) {
 
   if (isVerified) {
     return (
-      <div className="flex items-center gap-2 text-green-400 text-xs">
+      <div className="flex items-center gap-2 text-emerald-200 text-xs">
         <CheckCircle className="w-4 h-4" />
         <span>WORLD_ID_VERIFIED</span>
       </div>
@@ -47,17 +48,14 @@ export function WorldIDVerify({ onVerified, disabled }: WorldIDVerifyProps) {
       >
         {({ open }) => (
           <div className="space-y-2">
-            <button
+            <Button
+              variant="secondary"
               onClick={open}
               disabled={disabled}
-              className="w-full py-3 px-4 border border-green-800 hover:border-green-400 hover:bg-green-900/20 
-                         flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              className="w-full"
             >
-              <Shield className="w-5 h-5" />
-              <span className="text-xs font-bold uppercase tracking-widest">
-                Verify with World ID
-              </span>
-            </button>
+              Verify with World ID
+            </Button>
             
             <button
               onClick={() => handleVerify({
@@ -66,9 +64,9 @@ export function WorldIDVerify({ onVerified, disabled }: WorldIDVerifyProps) {
                 nullifier_hash: '0x' + Math.random().toString(16).slice(2, 42).padStart(40, '0'),
                 verification_level: VerificationLevel.Device
               })}
-              className="w-full py-1 text-[8px] text-green-900 hover:text-green-500 uppercase tracking-tighter transition-colors"
+              className="w-full py-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors"
             >
-              [ Simulator Unavailable? Click to Bypass ]
+              Simulator unavailable? Click to bypass (demo)
             </button>
           </div>
         )}
@@ -81,8 +79,8 @@ export function WorldIDVerify({ onVerified, disabled }: WorldIDVerifyProps) {
         </div>
       )}
       
-      <p className="text-[10px] text-green-900 text-center">
-        Prove you&apos;re human to activate AI agent
+      <p className="text-[11px] text-zinc-500 text-center">
+        Human verification gates agent activation.
       </p>
     </div>
   );

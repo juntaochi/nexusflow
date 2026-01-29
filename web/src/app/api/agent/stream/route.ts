@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getCrossChainOpportunities, DeFiMonitor } from "@/lib/perception/monitor";
+import { getCrossChainOpportunities } from "@/lib/perception/monitor";
 
 export const dynamic = 'force-dynamic';
 
@@ -16,13 +16,10 @@ export async function GET(request: NextRequest) {
 
       const interval = setInterval(async () => {
         try {
-          const opportunities = await DeFiMonitor.getOpportunities();
-          const crossChainOps = await getCrossChainOpportunities();
-          
-          const allOps = [...opportunities, ...crossChainOps];
+          const opportunities = await getCrossChainOpportunities();
 
-          if (allOps.length > 0) {
-            send("opportunity", allOps[0]);
+          if (opportunities.length > 0) {
+            send("opportunity", opportunities[0]);
           } else {
              send("heartbeat", { status: "Scanning Superchain..." });
           }

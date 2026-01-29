@@ -6,17 +6,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   X402Config,
-  create402Response,
-  parsePaymentHeader,
   createPaymentInfo,
+  verifyX402Payment,
+  withPaymentResponseHeader,
 } from "@/lib/x402/middleware";
 
 const STRATEGY_X402_CONFIG: X402Config = {
   payTo: (process.env.NEXUSFLOW_TREASURY_ADDRESS ||
     "0x742d35Cc6634C0532925a3b844Bc9e7595f0Ab00") as `0x${string}`,
-  asset: "USDC",
-  network: process.env.NODE_ENV === "production" ? "base" : "base-sepolia",
-  priceUSDC: "0.005", // $0.005 per yield strategy query
+  network:
+    process.env.NODE_ENV === "production" ? "eip155:8453" : "eip155:84532",
+  priceUsd: "0.005", // $0.005 per yield strategy query
+  description: "NexusFlow Premium Yield Strategy",
+  mimeType: "application/json",
 };
 
 interface YieldOpportunity {
@@ -41,9 +43,10 @@ export async function GET() {
     version: "1.0.0",
     x402Enabled: true,
     pricing: {
-      perQuery: STRATEGY_X402_CONFIG.priceUSDC,
-      asset: STRATEGY_X402_CONFIG.asset,
-      network: STRATEGY_X402_CONFIG.network,
+      perQuery: STRATEGY_X402_CONFIG.priceUsd,
+      asset: "USDC",
+      network: paymentInfo.network,
+      networkId: paymentInfo.networkId,
     },
     payment: paymentInfo,
     description:
@@ -55,14 +58,13 @@ export async function GET() {
  * POST - Get premium yield strategies (requires x402 payment)
  */
 export async function POST(request: NextRequest) {
-  const payment = parsePaymentHeader(request);
+  const paymentCheck = await verifyX402Payment(
+    request,
+    STRATEGY_X402_CONFIG
+  );
 
-  if (!payment) {
-    return create402Response(
-      STRATEGY_X402_CONFIG,
-      "/api/strategies/yield",
-      `Premium Yield Strategy - ${STRATEGY_X402_CONFIG.priceUSDC} ${STRATEGY_X402_CONFIG.asset}`
-    );
+  if (!paymentCheck.ok) {
+    return paymentCheck.response;
   }
 
   try {
@@ -78,16 +80,18 @@ export async function POST(request: NextRequest) {
       chains,
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       strategies,
       metadata: {
         timestamp: new Date().toISOString(),
-        paymentUsed: STRATEGY_X402_CONFIG.priceUSDC,
+        paymentUsed: STRATEGY_X402_CONFIG.priceUsd,
         dataQuality: "premium",
         sourceChains: ["Base", "Optimism", "Zora", "Mode"],
       },
     });
+
+    return withPaymentResponseHeader(response, paymentCheck.settlement);
   } catch (error) {
     return NextResponse.json(
       {

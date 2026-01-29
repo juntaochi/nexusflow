@@ -1,3 +1,5 @@
+import path from "node:path";
+import dotenv from "dotenv";
 import "reflect-metadata";
 import { AgentKit, ViemWalletProvider } from "@coinbase/agentkit";
 import { getLangChainTools } from "@coinbase/agentkit-langchain";
@@ -5,11 +7,17 @@ import { nexusActionProvider } from "./actions";
 import { x402NexusActionProvider } from "./x402/actions";
 import { createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { base } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 import { ChatOpenAI } from "@langchain/openai";
 import { MemorySaver } from "@langchain/langgraph";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import * as readline from "readline";
+
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+dotenv.config({
+  path: path.resolve(process.cwd(), "..", ".env"),
+  override: false,
+});
 
 type MessageWithContent = { content?: unknown };
 
@@ -37,11 +45,15 @@ export async function initializeAgent() {
   }
 
   const account = privateKeyToAccount(privateKey);
+  const baseRpc = process.env.BASE_SEPOLIA_RPC || process.env.BASE_SEPOLIA_RPC_URL;
+  if (!baseRpc) {
+    throw new Error("BASE_SEPOLIA_RPC is required for agent execution.");
+  }
 
   const client = createWalletClient({
     account,
-    chain: base,
-    transport: http(),
+    chain: baseSepolia,
+    transport: http(baseRpc),
   });
 
   // Type cast to bypass Viem version mismatch between AgentKit and local project

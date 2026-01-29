@@ -6,9 +6,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   X402Config,
-  create402Response,
-  parsePaymentHeader,
   createPaymentInfo,
+  verifyX402Payment,
+  withPaymentResponseHeader,
 } from "@/lib/x402/middleware";
 import { parseIntent, LLMProvider } from "@/lib/parser";
 import { formatIntentPreview, getTokenAddress, IntentType } from "@/lib/intents";
@@ -17,9 +17,11 @@ import { formatIntentPreview, getTokenAddress, IntentType } from "@/lib/intents"
 const NEXUSFLOW_X402_CONFIG: X402Config = {
   payTo: (process.env.NEXUSFLOW_TREASURY_ADDRESS ||
     "0x742d35Cc6634C0532925a3b844Bc9e7595f0Ab00") as `0x${string}`,
-  asset: "USDC",
-  network: process.env.NODE_ENV === "production" ? "base" : "base-sepolia",
-  priceUSDC: process.env.NEXUSFLOW_INTENT_PRICE || "0.001", // $0.001 per intent
+  network:
+    process.env.NODE_ENV === "production" ? "eip155:8453" : "eip155:84532",
+  priceUsd: process.env.NEXUSFLOW_INTENT_PRICE || "0.001", // $0.001 per intent
+  description: "NexusFlow Intent Execution",
+  mimeType: "text/event-stream",
 };
 
 // Mock Paymaster Logic - In production this would interact with a Paymaster contract
@@ -36,9 +38,10 @@ export async function GET() {
     version: "1.0.0",
     x402Enabled: true,
     pricing: {
-      perIntent: NEXUSFLOW_X402_CONFIG.priceUSDC,
-      asset: NEXUSFLOW_X402_CONFIG.asset,
-      network: NEXUSFLOW_X402_CONFIG.network,
+      perIntent: NEXUSFLOW_X402_CONFIG.priceUsd,
+      asset: "USDC",
+      network: paymentInfo.network,
+      networkId: paymentInfo.networkId,
     },
     payment: paymentInfo,
     capabilities: [
@@ -57,16 +60,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
 
-  // Check for payment header first
-  const payment = parsePaymentHeader(request);
-
-  if (!payment) {
-    // Return 402 with payment options
-    return create402Response(
-      NEXUSFLOW_X402_CONFIG,
-      "/api/agent/paid",
-      `NexusFlow Intent Execution - ${NEXUSFLOW_X402_CONFIG.priceUSDC} ${NEXUSFLOW_X402_CONFIG.asset} per intent`
-    );
+  const paymentCheck = await verifyX402Payment(request, NEXUSFLOW_X402_CONFIG);
+  if (!paymentCheck.ok) {
+    return paymentCheck.response;
   }
 
   // Payment provided - process with streaming
@@ -91,7 +87,7 @@ export async function POST(request: NextRequest) {
         // Log payment info
         send("log", { message: "✓ Payment verified" });
         send("log", {
-          message: `Payment: ${NEXUSFLOW_X402_CONFIG.priceUSDC} ${NEXUSFLOW_X402_CONFIG.asset}`,
+          message: `Payment: ${NEXUSFLOW_X402_CONFIG.priceUsd} USDC`,
         });
         send("log", { message: `> Processing: "${userIntent}"` });
 
@@ -111,7 +107,7 @@ export async function POST(request: NextRequest) {
             success: false,
             intent,
             preview,
-            paymentUsed: NEXUSFLOW_X402_CONFIG.priceUSDC,
+            paymentUsed: NEXUSFLOW_X402_CONFIG.priceUsd,
           });
           controller.close();
           return;
@@ -160,8 +156,8 @@ export async function POST(request: NextRequest) {
           preview,
           tokenInfo,
           confidence: intent.confidence,
-          paymentUsed: NEXUSFLOW_X402_CONFIG.priceUSDC,
-          paymentAsset: NEXUSFLOW_X402_CONFIG.asset,
+          paymentUsed: NEXUSFLOW_X402_CONFIG.priceUsd,
+          paymentAsset: "USDC",
           sponsorship: sponsorship
         });
       } catch (error) {
@@ -174,12 +170,13 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  return new Response(stream, {
+  const response = new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
-      "X-Payment-Accepted": "true",
     },
   });
+
+  return withPaymentResponseHeader(response, paymentCheck.settlement);
 }

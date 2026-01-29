@@ -6,17 +6,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   X402Config,
-  create402Response,
-  parsePaymentHeader,
   createPaymentInfo,
+  verifyX402Payment,
+  withPaymentResponseHeader,
 } from "@/lib/x402/middleware";
 
 const MEV_STRATEGY_X402_CONFIG: X402Config = {
   payTo: (process.env.NEXUSFLOW_TREASURY_ADDRESS ||
     "0x742d35Cc6634C0532925a3b844Bc9e7595f0Ab00") as `0x${string}`,
-  asset: "USDC",
-  network: process.env.NODE_ENV === "production" ? "base" : "base-sepolia",
-  priceUSDC: "0.01", // $0.01 per MEV-protected transaction
+  network:
+    process.env.NODE_ENV === "production" ? "eip155:8453" : "eip155:84532",
+  priceUsd: "0.01", // $0.01 per MEV-protected transaction
+  description: "NexusFlow MEV Protection",
+  mimeType: "application/json",
 };
 
 interface MEVProtectionRoute {
@@ -42,9 +44,10 @@ export async function GET() {
     version: "1.0.0",
     x402Enabled: true,
     pricing: {
-      perTransaction: MEV_STRATEGY_X402_CONFIG.priceUSDC,
-      asset: MEV_STRATEGY_X402_CONFIG.asset,
-      network: MEV_STRATEGY_X402_CONFIG.network,
+      perTransaction: MEV_STRATEGY_X402_CONFIG.priceUsd,
+      asset: "USDC",
+      network: paymentInfo.network,
+      networkId: paymentInfo.networkId,
     },
     payment: paymentInfo,
     description:
@@ -62,14 +65,13 @@ export async function GET() {
  * POST - Get MEV protection route (requires x402 payment)
  */
 export async function POST(request: NextRequest) {
-  const payment = parsePaymentHeader(request);
+  const paymentCheck = await verifyX402Payment(
+    request,
+    MEV_STRATEGY_X402_CONFIG
+  );
 
-  if (!payment) {
-    return create402Response(
-      MEV_STRATEGY_X402_CONFIG,
-      "/api/strategies/mev",
-      `MEV Protection Strategy - ${MEV_STRATEGY_X402_CONFIG.priceUSDC} ${MEV_STRATEGY_X402_CONFIG.asset}`
-    );
+  if (!paymentCheck.ok) {
+    return paymentCheck.response;
   }
 
   try {
@@ -101,16 +103,18 @@ export async function POST(request: NextRequest) {
       protectionLevel,
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       route,
       metadata: {
         timestamp: new Date().toISOString(),
-        paymentUsed: MEV_STRATEGY_X402_CONFIG.priceUSDC,
+        paymentUsed: MEV_STRATEGY_X402_CONFIG.priceUsd,
         protectionActive: true,
         estimatedSavings: route.estimatedSavings,
       },
     });
+
+    return withPaymentResponseHeader(response, paymentCheck.settlement);
   } catch (error) {
     return NextResponse.json(
       {

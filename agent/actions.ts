@@ -272,10 +272,15 @@ export class NexusActionProvider extends ActionProvider<ViemWalletProvider> {
 
     // Get current opportunities
     const opportunities = await DeFiMonitor.getOpportunities();
+    const matchesChain = (candidate: string, input: string) => {
+      const normCandidate = candidate.toLowerCase();
+      const normInput = input.toLowerCase();
+      return normCandidate.includes(normInput) || normInput.includes(normCandidate);
+    };
     const matchingOpp = opportunities.find(
       (opp: ArbitrageOpportunity) =>
-        opp.sourceChain.toLowerCase() === args.sourceChain.toLowerCase() &&
-        opp.targetChain.toLowerCase() === args.targetChain.toLowerCase()
+        matchesChain(opp.sourceChain, args.sourceChain) &&
+        matchesChain(opp.targetChain, args.targetChain)
     );
 
     if (!matchingOpp) {
