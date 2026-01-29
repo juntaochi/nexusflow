@@ -5,7 +5,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import {
-  withX402,
   X402Config,
   create402Response,
   parsePaymentHeader,
@@ -29,7 +28,7 @@ const PAYMASTER_ADDRESS = "0x8888888888888888888888888888888888888888"; // Mock 
 /**
  * GET - Returns payment info and pricing
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   const paymentInfo = createPaymentInfo(NEXUSFLOW_X402_CONFIG);
 
   return NextResponse.json({

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { encodeFunctionData, Hex, Address } from "viem";
 import { parseIntent, formatIntentPreview, ParserConfig } from "./parser";
 import { IntentType, getTokenAddress, SwapIntent, BridgeIntent, BASE_TOKENS } from "./intents";
+import type { ArbitrageOpportunity } from "./executor/arbitrage.js";
 import { getSwapQuote, formatSwapQuote } from "./resolvers/swap";
 import { buildBridgeCalldata, formatBridgePreview, isBridgeSupported } from "./resolvers/bridge";
 
@@ -257,19 +258,22 @@ export class NexusActionProvider extends ActionProvider<ViemWalletProvider> {
       userEOA: z.string().describe("User's EOA address (upgraded via EIP-7702)"),
     }),
   })
-  async executeArbitrage(args: {
-    sourceChain: string;
-    targetChain: string;
-    amount: string;
-    userEOA: string;
-  }) {
-    const { ArbitrageExecutor } = await import("./executor/arbitrage");
-    const { DeFiMonitor } = await import("./cron/monitor");
+  async executeArbitrage(
+    walletProvider: ViemWalletProvider,
+    args: {
+      sourceChain: string;
+      targetChain: string;
+      amount: string;
+      userEOA: string;
+    }
+  ) {
+    const { ArbitrageExecutor } = await import("./executor/arbitrage.js");
+    const { DeFiMonitor } = await import("./cron/monitor.js");
 
     // Get current opportunities
     const opportunities = await DeFiMonitor.getOpportunities();
     const matchingOpp = opportunities.find(
-      (opp) =>
+      (opp: ArbitrageOpportunity) =>
         opp.sourceChain.toLowerCase() === args.sourceChain.toLowerCase() &&
         opp.targetChain.toLowerCase() === args.targetChain.toLowerCase()
     );
@@ -282,12 +286,9 @@ export class NexusActionProvider extends ActionProvider<ViemWalletProvider> {
     }
 
     // Execute the arbitrage (cast matchingOpp to proper type)
-    const executor = new ArbitrageExecutor(
-      this.getWalletProvider(),
-      args.userEOA as Address
-    );
+    const executor = new ArbitrageExecutor(walletProvider, args.userEOA as Address);
 
-    const result = await executor.executeArbitrage(matchingOpp as any);
+    const result = await executor.executeArbitrage(matchingOpp as ArbitrageOpportunity);
 
     return JSON.stringify({
       success: result.success,

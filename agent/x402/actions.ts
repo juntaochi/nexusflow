@@ -6,6 +6,7 @@
 import { CreateAction, ActionProvider, ViemWalletProvider } from "@coinbase/agentkit";
 import { z } from "zod";
 import { createX402Client, X402PaymentResult } from "./client";
+import type { StrategyListing } from "./marketplace.js";
 
 /**
  * X402NexusActionProvider - Extends agent capabilities with paid API access
@@ -217,7 +218,7 @@ export class X402NexusActionProvider extends ActionProvider<ViemWalletProvider> 
       agentId?: string;
     }
   ): Promise<string> {
-    const { globalMarketplace } = await import("./marketplace");
+    const { globalMarketplace } = await import("./marketplace.js");
     const address = await walletProvider.getAddress();
 
     const strategyId = globalMarketplace.registerStrategy({
@@ -259,14 +260,14 @@ export class X402NexusActionProvider extends ActionProvider<ViemWalletProvider> 
       verifiedOnly?: boolean;
     }
   ): Promise<string> {
-    const { globalMarketplace } = await import("./marketplace");
+    const { globalMarketplace } = await import("./marketplace.js");
 
     const strategies = globalMarketplace.discoverStrategies(args);
 
     return JSON.stringify({
       success: true,
       count: strategies.length,
-      strategies: strategies.slice(0, 10).map((s) => ({
+      strategies: strategies.slice(0, 10).map((s: StrategyListing) => ({
         id: s.id,
         name: s.name,
         category: s.category,

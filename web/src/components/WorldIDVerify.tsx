@@ -44,7 +44,6 @@ export function WorldIDVerify({ onVerified, disabled }: WorldIDVerifyProps) {
         onSuccess={handleVerify}
         verification_level={VerificationLevel.Device}
         autoClose
-        {...({ title: 'NexusFlow Verification' } as any)}
       >
         {({ open }) => (
           <div className="space-y-2">

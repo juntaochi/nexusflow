@@ -79,7 +79,7 @@ export async function getSwapQuote(intent: SwapIntent): Promise<SwapResult> {
       return { success: false, error: `0x API error: ${error}` };
     }
 
-    const quote: SwapQuote = await response.json();
+    const quote = (await response.json()) as SwapQuote;
 
     return {
       success: true,

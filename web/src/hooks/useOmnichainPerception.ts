@@ -6,6 +6,7 @@ export function useOmnichainPerception() {
   const [status, setStatus] = useState<string>("Scanning...");
   const eventSourceRef = useRef<EventSource | null>(null);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const connectRef = useRef<() => void>(() => undefined);
 
   const connect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -40,12 +41,13 @@ export function useOmnichainPerception() {
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
       
       retryTimeoutRef.current = setTimeout(() => {
-        connect();
+        connectRef.current();
       }, 5000);
     };
   }, []);
 
   useEffect(() => {
+    connectRef.current = connect;
     connect();
     return () => {
       if (eventSourceRef.current) eventSourceRef.current.close();

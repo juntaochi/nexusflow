@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useSyncExternalStore } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { use7702 } from '@/hooks/use7702';
 import { useAgentStream } from '@/hooks/useAgentStream';
@@ -16,7 +16,11 @@ import { Terminal, Shield, Cpu, Activity, Send, Globe, CheckCircle, DollarSign }
 import type { ISuccessResult } from '@worldcoin/idkit';
 
 export default function NexusDashboard() {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false
+  );
   const { signDelegation, isSigning, hasDelegated } = use7702();
   const { sendIntent, logs: agentLogs, isProcessing, result: agentResult, clearLogs } = useAgentStream();
   const { serviceInfo, isPaying, lastPayment, sendPaidIntent, isReady: isX402Ready } = useX402();
@@ -25,10 +29,8 @@ export default function NexusDashboard() {
   const [usePaidMode, setUsePaidMode] = useState(false);
   const [paidLogs, setPaidLogs] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
-  const [showBridge, setShowBridge] = useState(false);
-  const [bridgeData, setBridgeData] = useState<{from: string, to: string, token: string, amount: string} | null>(null);
-  
-  const { opportunity, clearOpportunity } = useOmnichainPerception();
+
+  const { opportunity } = useOmnichainPerception();
   const [bridgeStatus, setBridgeStatus] = useState<'idle' | 'burning' | 'messaging' | 'minting' | 'completed'>('idle');
   const [showOpportunity, setShowOpportunity] = useState(true);
 
@@ -49,7 +51,6 @@ export default function NexusDashboard() {
       originalError.apply(console, args);
     };
 
-    setMounted(true);
     return () => {
       console.error = originalError;
     };
@@ -99,8 +100,9 @@ export default function NexusDashboard() {
          setDelegationLogs(prev => [...prev, '✓ EIP-7702 Delegation Successful', 'Agent authorized to execute intents.']);
        }
        setSandboxExpiry(Math.floor(Date.now() / 1000) + 86400); // 24 hours from now
-     } catch (error: any) {
-       setDelegationLogs(prev => [...prev, `✗ Delegation Failed: ${error.message || 'Unknown error'}`]);
+     } catch (error: unknown) {
+       const message = error instanceof Error ? error.message : 'Unknown error';
+       setDelegationLogs(prev => [...prev, `✗ Delegation Failed: ${message}`]);
      }
    };
 
@@ -269,7 +271,6 @@ export default function NexusDashboard() {
                     <button 
                       onClick={() => {
                         setBridgeStatus('idle');
-                        setShowBridge(false);
                       }}
                       className="mt-2 text-[10px] text-green-500 border border-green-900 px-2 py-1 hover:bg-green-900/20"
                     >
@@ -286,12 +287,6 @@ export default function NexusDashboard() {
                     const intent = agentResult.intent;
 
                     if (intent.type === IntentType.BRIDGE) {
-                      setBridgeData({
-                          from: intent.fromChain,
-                          to: intent.toChain,
-                          token: intent.token,
-                          amount: intent.amount
-                      });
                       setBridgeStatus('burning');
                       
                       setTimeout(() => setBridgeStatus('messaging'), 3000);

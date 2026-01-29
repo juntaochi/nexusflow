@@ -45,7 +45,7 @@ export function BridgeVisualizer({ sourceChain, targetChain, token, amount, onCo
       clearTimeout(timer2);
       clearTimeout(timer3);
     };
-  }, []);
+  }, [onComplete]);
 
   return (
     <div className="w-full border border-green-500/50 bg-black/80 rounded-sm p-4 animate-in fade-in zoom-in duration-300">

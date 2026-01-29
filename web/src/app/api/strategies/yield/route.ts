@@ -33,7 +33,7 @@ interface YieldOpportunity {
 /**
  * GET - Returns payment info
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   const paymentInfo = createPaymentInfo(STRATEGY_X402_CONFIG);
 
   return NextResponse.json({

@@ -57,12 +57,14 @@ export class StrategyMarketplace {
       results = results.filter((s) => s.category === params.category);
     }
 
-    if (params?.maxPrice) {
-      results = results.filter((s) => parseFloat(s.priceUSDC) <= params.maxPrice);
+    const maxPrice = params?.maxPrice;
+    if (typeof maxPrice === "number") {
+      results = results.filter((s) => parseFloat(s.priceUSDC) <= maxPrice);
     }
 
-    if (params?.minSuccessRate) {
-      results = results.filter((s) => s.successRate >= params.minSuccessRate);
+    const minSuccessRate = params?.minSuccessRate;
+    if (typeof minSuccessRate === "number") {
+      results = results.filter((s) => s.successRate >= minSuccessRate);
     }
 
     if (params?.verifiedOnly) {

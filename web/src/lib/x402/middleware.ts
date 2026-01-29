@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createPublicClient, http, verifyMessage, type Hex } from "viem";
+import { verifyMessage, type Hex } from "viem";
 import { base, baseSepolia } from "viem/chains";
 
 // x402 Payment Configuration
@@ -131,12 +131,6 @@ export async function verifyPayment(
   config: X402Config
 ): Promise<{ valid: boolean; payer?: string; txHash?: string; error?: string }> {
   try {
-    const chain = config.network === "base" ? base : baseSepolia;
-    const client = createPublicClient({
-      chain,
-      transport: http(),
-    });
-
     // Decode payment payload
     const payloadData = JSON.parse(
       Buffer.from(payment.payload, "base64").toString()

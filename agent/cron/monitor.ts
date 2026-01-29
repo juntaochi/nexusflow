@@ -1,4 +1,5 @@
 import { ethers } from 'ethers';
+import type { ArbitrageOpportunity } from '../executor/arbitrage.js';
 
 // Mock APY Provider for Demo purposes
 // In production, this would fetch from Aave/Compound subgraphs or APIs
@@ -11,7 +12,7 @@ export class DeFiMonitor {
   ];
 
   // Simulate APY fluctuation
-  static async getOpportunities() {
+  static async getOpportunities(): Promise<ArbitrageOpportunity[]> {
     const opportunities = this.PROVIDERS.map(p => ({
       ...p,
       apy: p.baseApy + (Math.random() * 0.05) // Random fluctuation 0-5%
@@ -29,7 +30,7 @@ export class DeFiMonitor {
         const target = bestBase.apy > bestOp.apy ? bestBase : bestOp;
         
         return [{
-            type: 'ARBITRAGE',
+            type: 'ARBITRAGE' as const,
             sourceChain: source.chain,
             targetChain: target.chain,
             token: source.token,

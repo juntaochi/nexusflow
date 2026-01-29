@@ -23,10 +23,13 @@ export function use7702() {
       // Check if the wallet supports EIP-7702
       // In a real hackathon demo, we might want to fallback to a mock if the wallet is missing support
       let signature: string;
+      const request = walletClient.request as unknown as (args: {
+        method: string;
+        params: unknown[];
+      }) => Promise<string>;
       
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        signature = await (walletClient.request as any)({
+        signature = await request({
           method: 'eth_signDelegation',
           params: [
             {
@@ -37,9 +40,15 @@ export function use7702() {
             address,
           ],
         });
-      } catch (rpcError: any) {
+      } catch (rpcError: unknown) {
         // Fallback for Demo/Hackathon if wallet doesn't support 7702 yet
-        if (rpcError.code === -32601 || rpcError.message?.includes('not exist') || rpcError.message?.includes('not available')) {
+        const errorCode =
+          typeof rpcError === 'object' && rpcError !== null && 'code' in rpcError
+            ? (rpcError as { code?: number }).code
+            : undefined;
+        const errorMessage = rpcError instanceof Error ? rpcError.message : '';
+
+        if (errorCode === -32601 || errorMessage.includes('not exist') || errorMessage.includes('not available')) {
           console.warn('Wallet does not support eth_signDelegation. Using Mock Signature for Demo.');
           // Generate a fake but valid-looking signature for the demo flow
           signature = '0x' + 'a'.repeat(130); 

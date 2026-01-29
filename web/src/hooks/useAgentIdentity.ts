@@ -6,7 +6,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import { ISuccessResult } from '@worldcoin/idkit';
-import { Address, encodeFunctionData } from 'viem';
+import { Address } from 'viem';
 
 // AgentRegistry contract ABI (minimal)
 const AGENT_REGISTRY_ABI = [
@@ -116,62 +116,6 @@ export function useAgentIdentity() {
   }, [address]);
 
   /**
-   * Register agent in ERC-8004 registry
-   */
-  const registerAgent = useCallback(async (
-    name: string,
-    worldIDProof?: ISuccessResult
-  ): Promise<bigint> => {
-    if (!address || !walletClient || !publicClient) {
-      throw new Error('Wallet not connected');
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Step 1: Verify World ID if proof provided
-      let nullifierHash: string | null = null;
-      if (worldIDProof) {
-        nullifierHash = await verifyWorldID(worldIDProof);
-      }
-
-      // Step 2: Register in AgentRegistry
-      const metadataURI = JSON.stringify({
-        name,
-        version: '1.0.0',
-        worldIDVerified: !!nullifierHash,
-        nullifierHash,
-        createdAt: new Date().toISOString(),
-      });
-
-      const hash = await walletClient.writeContract({
-        address: AGENT_REGISTRY_ADDRESS,
-        abi: AGENT_REGISTRY_ABI,
-        functionName: 'registerAgent',
-        args: [name, metadataURI],
-      });
-
-      // Wait for transaction
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      
-      // Extract agentId from logs (simplified)
-      const agentId = BigInt(1); // In production, parse from event logs
-
-      // Refresh identity
-      await fetchAgentIdentity();
-
-      return agentId;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Registration failed';
-      setError(message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [address, walletClient, publicClient, verifyWorldID]);
-
-  /**
    * Fetch current agent identity from registry
    */
   const fetchAgentIdentity = useCallback(async () => {
@@ -235,6 +179,62 @@ export function useAgentIdentity() {
       setIsLoading(false);
     }
   }, [address, publicClient]);
+
+  /**
+   * Register agent in ERC-8004 registry
+   */
+  const registerAgent = useCallback(async (
+    name: string,
+    worldIDProof?: ISuccessResult
+  ): Promise<bigint> => {
+    if (!address || !walletClient || !publicClient) {
+      throw new Error('Wallet not connected');
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Step 1: Verify World ID if proof provided
+      let nullifierHash: string | null = null;
+      if (worldIDProof) {
+        nullifierHash = await verifyWorldID(worldIDProof);
+      }
+
+      // Step 2: Register in AgentRegistry
+      const metadataURI = JSON.stringify({
+        name,
+        version: '1.0.0',
+        worldIDVerified: !!nullifierHash,
+        nullifierHash,
+        createdAt: new Date().toISOString(),
+      });
+
+      const hash = await walletClient.writeContract({
+        address: AGENT_REGISTRY_ADDRESS,
+        abi: AGENT_REGISTRY_ABI,
+        functionName: 'registerAgent',
+        args: [name, metadataURI],
+      });
+
+      // Wait for transaction
+      await publicClient.waitForTransactionReceipt({ hash });
+      
+      // Extract agentId from logs (simplified)
+      const agentId = BigInt(1); // In production, parse from event logs
+
+      // Refresh identity
+      await fetchAgentIdentity();
+
+      return agentId;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Registration failed';
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [address, walletClient, publicClient, verifyWorldID, fetchAgentIdentity]);
 
   /**
    * Vote on agent reputation

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Lock, Clock, AlertTriangle, CheckCircle, Activity, RefreshCw } from 'lucide-react';
+import { Shield, Lock, Clock, CheckCircle, Activity, RefreshCw } from 'lucide-react';
 
 interface SecuritySandboxProps {
   isActive: boolean;
@@ -8,7 +8,7 @@ interface SecuritySandboxProps {
 
 export function SecuritySandbox({ isActive, expiry }: SecuritySandboxProps) {
   // Mock data representing state from NexusDelegation.sol
-  const [limits, setLimits] = useState({
+  const [limits] = useState({
     dailyLimit: 1000,
     spentToday: 124.50,
     asset: 'USDC',

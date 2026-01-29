@@ -98,13 +98,23 @@ export function ArbitrageFlow() {
     }, 5000);
   }, []);
 
+  const toggleMonitoring = useCallback(() => {
+    setIsMonitoring((prev) => {
+      const next = !prev;
+      if (!prev) {
+        void fetchOpportunities();
+      }
+      return next;
+    });
+  }, [fetchOpportunities]);
+
   // Monitor for opportunities
   useEffect(() => {
-    if (isMonitoring) {
-      fetchOpportunities();
-      const interval = setInterval(fetchOpportunities, 30000);
-      return () => clearInterval(interval);
-    }
+    if (!isMonitoring) return;
+    const interval = setInterval(() => {
+      void fetchOpportunities();
+    }, 30000);
+    return () => clearInterval(interval);
   }, [isMonitoring, fetchOpportunities]);
 
   return (
@@ -118,7 +128,7 @@ export function ArbitrageFlow() {
           </span>
         </div>
         <button
-          onClick={() => setIsMonitoring(!isMonitoring)}
+          onClick={toggleMonitoring}
           className={`text-xs px-3 py-1 border transition-all ${
             isMonitoring
               ? 'border-red-800 text-red-400 hover:bg-red-900/20'
@@ -165,7 +175,7 @@ export function ArbitrageFlow() {
       {!isMonitoring && (
         <div className="text-center py-8 border border-green-900">
           <div className="text-xs text-green-900">
-            Click "START MONITORING" to enable autonomous arbitrage
+            Click &quot;START MONITORING&quot; to enable autonomous arbitrage
           </div>
         </div>
       )}

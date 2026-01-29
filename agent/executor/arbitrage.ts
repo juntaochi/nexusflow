@@ -60,7 +60,7 @@ const PROTOCOL_ADDRESSES: Record<string, Record<string, Address>> = {
   },
 };
 
-interface ArbitrageOpportunity {
+export interface ArbitrageOpportunity {
   type: "ARBITRAGE";
   sourceChain: string;
   targetChain: string;
@@ -113,7 +113,7 @@ export class ArbitrageExecutor {
           });
 
           // Execute best opportunity
-          const result = await this.executeArbitrage(opportunities[0]);
+          const result = await this.executeArbitrage(opportunities[0] as ArbitrageOpportunity);
           if (result.success) {
             console.log(`✅ Arbitrage executed: ${result.txHash}`);
           } else {
@@ -239,12 +239,16 @@ export class ArbitrageExecutor {
       });
 
       // Execute via NexusDelegation
-      const client = this.walletProvider.getWalletClient();
-      const hash = await client.writeContract({
-        address: this.userEOA,
+      const data = encodeFunctionData({
         abi: NEXUS_DELEGATION_ABI,
         functionName: "executeIntent",
         args: [addresses.aave, withdrawData],
+      });
+
+      const hash = await this.walletProvider.sendTransaction({
+        to: this.userEOA,
+        data,
+        value: 0n,
       });
 
       return { success: true, txHash: hash };
@@ -291,12 +295,16 @@ export class ArbitrageExecutor {
       });
 
       // Execute via NexusDelegation.sendCrossChainIntent
-      const client = this.walletProvider.getWalletClient();
-      const hash = await client.writeContract({
-        address: this.userEOA,
+      const data = encodeFunctionData({
         abi: NEXUS_DELEGATION_ABI,
         functionName: "sendCrossChainIntent",
         args: [BigInt(targetChainId), sourceAddresses.usdc, bridgeData],
+      });
+
+      const hash = await this.walletProvider.sendTransaction({
+        to: this.userEOA,
+        data,
+        value: 0n,
       });
 
       return { success: true, txHash: hash };
@@ -341,12 +349,16 @@ export class ArbitrageExecutor {
       });
 
       // Execute via NexusDelegation
-      const client = this.walletProvider.getWalletClient();
-      const hash = await client.writeContract({
-        address: this.userEOA,
+      const data = encodeFunctionData({
         abi: NEXUS_DELEGATION_ABI,
         functionName: "executeIntent",
         args: [addresses.aave, depositData],
+      });
+
+      const hash = await this.walletProvider.sendTransaction({
+        to: this.userEOA,
+        data,
+        value: 0n,
       });
 
       return { success: true, txHash: hash };

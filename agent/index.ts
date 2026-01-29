@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { AgentKit, ViemWalletProvider } from "@coinbase/agentkit";
+import { getLangChainTools } from "@coinbase/agentkit-langchain";
 import { nexusActionProvider } from "./actions";
 import { x402NexusActionProvider } from "./x402/actions";
 import { createWalletClient, http } from "viem";
@@ -7,8 +8,24 @@ import { privateKeyToAccount } from "viem/accounts";
 import { base } from "viem/chains";
 import { ChatOpenAI } from "@langchain/openai";
 import { MemorySaver } from "@langchain/langgraph";
-import { createReactAgent } from "@langchain/langgraph";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import * as readline from "readline";
+
+type MessageWithContent = { content?: unknown };
+
+const getFirstMessageContent = (messages: unknown): string | undefined => {
+  if (Array.isArray(messages)) {
+    const first = messages[0] as MessageWithContent | undefined;
+    return typeof first?.content === "string" ? first.content : undefined;
+  }
+
+  if (messages && typeof messages === "object" && "content" in messages) {
+    const content = (messages as MessageWithContent).content;
+    return typeof content === "string" ? content : undefined;
+  }
+
+  return undefined;
+};
 
 /**
  * Initializes the NexusFlow Agent with 2026 Standards.
@@ -38,7 +55,7 @@ export async function initializeAgent() {
     ],
   });
 
-  const tools = agentKit.getTools();
+  const tools = await getLangChainTools(agentKit);
   const memory = new MemorySaver();
   const llm = new ChatOpenAI({
     modelName: "gpt-4o-mini",
@@ -86,9 +103,17 @@ async function runCLI() {
 
         for await (const chunk of stream) {
           if ("agent" in chunk) {
-            console.log("\n[Agent]:", chunk.agent.messages[0].content);
+            const agentMessages = (chunk as { agent?: { messages?: unknown } }).agent?.messages;
+            const content = getFirstMessageContent(agentMessages);
+            if (content) {
+              console.log("\n[Agent]:", content);
+            }
           } else if ("tools" in chunk) {
-            console.log("\n[Tool Call]:", chunk.tools.messages[0].content);
+            const toolMessages = (chunk as { tools?: { messages?: unknown } }).tools?.messages;
+            const content = getFirstMessageContent(toolMessages);
+            if (content) {
+              console.log("\n[Tool Call]:", content);
+            }
           }
         }
       } catch (error) {
