@@ -10,6 +10,30 @@ import { baseSepolia, optimismSepolia } from "viem/chains";
 import type { ArbitrageOpportunity } from "../executor/arbitrage.js";
 import { getSuperchainConfig } from "../superchain.js";
 
+// Oracle ABI (Chainlink AggregatorV3Interface)
+const AGGREGATOR_V3_ABI = [
+  {
+    inputs: [],
+    name: "latestRoundData",
+    outputs: [
+      { name: "roundId", type: "uint80" },
+      { name: "answer", type: "int256" },
+      { name: "startedAt", type: "uint256" },
+      { name: "updatedAt", type: "uint256" },
+      { name: "answeredInRound", type: "uint80" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "decimals",
+    outputs: [{ name: "", type: "uint8" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
 const AAVE_POOL_ABI = [
   {
     name: "getReserveData",
@@ -161,6 +185,34 @@ export class DeFiMonitor {
     } catch (error) {
       console.error("DeFiMonitor error:", error);
       return [];
+    }
+  }
+
+  // New method: Fetch price from Chainlink Oracle
+  static async getAssetPrice(
+    client: AnyPublicClient,
+    aggregatorAddress: Address
+  ): Promise<number> {
+    try {
+      const [roundData, decimals] = await Promise.all([
+        client.readContract({
+          address: aggregatorAddress,
+          abi: AGGREGATOR_V3_ABI,
+          functionName: "latestRoundData",
+        }),
+        client.readContract({
+          address: aggregatorAddress,
+          abi: AGGREGATOR_V3_ABI,
+          functionName: "decimals",
+        }),
+      ]);
+
+      // roundData[1] is the price 'answer'
+      const price = Number(roundData[1]);
+      return price / Math.pow(10, decimals);
+    } catch (error) {
+      console.warn(`Oracle read failed for ${aggregatorAddress}`, error);
+      return 0;
     }
   }
 

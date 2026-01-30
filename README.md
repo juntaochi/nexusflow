@@ -1,8 +1,8 @@
 # NexusFlow: Trustless Agentic Economy for the Superchain
 
-> **EIP-7702 + Superchain Interop + x402 + World ID** = The Future of Autonomous DeFi
+> **EIP-7702 + Superchain Interop + x402 + World ID** = The Future of Autonomous, Trustless Agent Economy
 
-NexusFlow is a full-stack platform that enables AI agents to autonomously manage user funds across the Optimism Superchain with ironclad security, on-chain reputation, and economic sustainability.
+NexusFlow is a full-stack platform enabling AI agents to autonomously manage user funds across the Optimism Superchain with ironclad security, on-chain reputation, and economic sustainability. It creates a permissionless marketplace where agents can monetize high-value strategies via the **x402 (Payment for Intelligence)** protocol.
 
 ---
 
@@ -10,15 +10,15 @@ NexusFlow is a full-stack platform that enables AI agents to autonomously manage
 
 ### Track A: Autonomous Arbitrage
 **Problem**: Liquidity fragmented across 20+ Superchain networks. Users manually chase yield.  
-**Solution**: AI agent monitors APY rates and autonomously executes cross-chain rebalancing via Superchain Interop (single-block transfers).
+**Solution**: AI agent monitors live APY rates via Chainlink Oracles and autonomously executes cross-chain rebalancing via Superchain Interop (single-block transfers).
 
 ### Track B: x402 Strategy Marketplace
 **Problem**: AI agents have no revenue model.  
-**Solution**: Agents offer premium strategies (MEV protection, yield optimization) as x402-protected APIs and earn USDC.
+**Solution**: Agents offer premium strategies (Yield Aggregation, MEV Protection) as x402-protected APIs, earning USDC via per-call or subscription models.
 
 ### Track C: Trustless Identity
 **Problem**: How do you trust an AI with your money?  
-**Solution**: World ID proves human ownership + ERC-8004 registry tracks on-chain reputation.
+**Solution**: World ID verifies human ownership, while the ERC-8004 registry tracks on-chain reputation and social recovery guardians.
 
 ---
 
@@ -112,7 +112,7 @@ Visit `http://localhost:3000`
 ### Act 2: EIP-7702 Authorization (45s)
 1. Sign EIP-7702 delegation
 2. EOA becomes smart account (no migration!)
-3. Set limits: **"$1000 daily | Whitelist: Aave, Compound"**
+3. Set limits: **"$1000 daily | Token Limits: 500 USDC | Whitelist: Aave, Compound"**
 4. Grant 24-hour session key
 
 ### Act 3: Autonomous Execution (60s)
@@ -137,7 +137,7 @@ Visit `http://localhost:3000`
 ### Act 5: Reputation (+1) (15s)
 1. After successful arbitrage, upvote Agent #42
 2. Reputation: +0 → +1 (on-chain)
-3. Badge updates: **"Verified Agent | 1 Positive Review"**
+3. Badge updates: **"Verified Agent | 1 Positive Signal"**
 
 ---
 
@@ -145,7 +145,7 @@ Visit `http://localhost:3000`
 
 | Layer | Technology | Purpose |
 |-------|------------|---------|
-| **Contracts** | Solidity + Foundry | EIP-7702 delegation, ERC-8004 registry, SuperchainERC20 |
+| **Contracts** | Solidity + Foundry | EIP-7702 delegation (with Social Recovery), ERC-8004 registry, SuperchainERC20 |
 | **Agent** | AgentKit + LangChain | Intent parsing, autonomous execution, x402 payments |
 | **Frontend** | Next.js + Wagmi + Viem | Wallet connection, World ID, real-time visualization |
 | **Identity** | World ID | Sybil-resistant human verification |
@@ -163,7 +163,7 @@ Traditional account abstraction requires migration to new smart wallet. We let *
 ### 2. Atomic Cross-Chain Arbitrage
 Traditional bridges take minutes. We use **Superchain Native Interop** for single-block transfers.
 
-**Code**: `agent/executor/arbitrage.ts`
+**Code**: `agent/executor/arbitrage.ts` & `agent/executor/aggregator.ts`
 
 ### 3. Agent-as-a-Service Economy
 Agents don't just execute for you—they **offer paid services** to others via x402 and earn USDC.
@@ -212,6 +212,10 @@ agent.discoverStrategies({
 Price: 0.005 USDC  
 Returns: AI-curated yield opportunities with risk analysis
 
+**Intra-Chain Aggregator**: `POST /api/strategies/aggregator`  
+Price: 0.01 USDC  
+Returns: Intra-chain rebalancing opportunities (e.g. Aave -> Moonwell)
+
 **MEV Protection**: `POST /api/strategies/mev`  
 Price: 0.01 USDC  
 Returns: MEV-resistant transaction routing
@@ -222,7 +226,7 @@ Returns: MEV-resistant transaction routing
 
 | Track | Technology | Our Implementation |
 |-------|------------|-------------------|
-| **Optimism Superchain** | Native Interop | Atomic cross-chain arbitrage executor |
+| **Optimism Superchain** | Native Interop + Oracles | Atomic cross-chain arbitrage executor using Chainlink Feeds |
 | **Ethereum (EIP-7702)** | Account abstraction | Session keys + delegation |
 | **Coinbase (AgentKit)** | Agent framework | Full production agent with x402 |
 | **World Chain** | World ID | Sybil-resistant agent registration |
@@ -261,6 +265,7 @@ Built with:
 - [Coinbase AgentKit](https://github.com/coinbase/agentkit)
 - [World ID](https://docs.worldcoin.org/id)
 - [EIP-7702 Spec](https://eips.ethereum.org/EIPS/eip-7702)
+- [Chainlink Data Feeds](https://data.chain.link/)
 
 ---
 

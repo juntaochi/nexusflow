@@ -21,6 +21,7 @@ import { CrossChainFlow } from '@/components/CrossChainFlow';
 import { IntentChips } from '@/components/IntentChips';
 import { SystemMap } from '@/components/SystemMap';
 import { OnchainProofCard } from '@/components/OnchainProofCard';
+import { History, ExternalLink } from 'lucide-react';
 
 
 type BridgeStatus = 'idle' | 'burning' | 'messaging' | 'minting' | 'completed';
@@ -66,6 +67,12 @@ export default function DashboardPage() {
   const activeChain = getChainById(chainId);
 
   const canSend = Boolean(input.trim()) && !isProcessing && !isPaying;
+
+  // Mock transaction history (in Week 3 this will be real data)
+  const txHistory = [
+    { hash: "0xabc...123", action: "Rebalance", time: "10 mins ago", status: "Success" },
+    { hash: "0xdef...456", action: "Arbitrage", time: "1 hour ago", status: "Success" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -333,6 +340,36 @@ export default function DashboardPage() {
           <Accordion title="On-chain proof (details)" subtitle="Bytecode + registry reads." defaultOpen={false}>
             <OnchainProofCard />
           </Accordion>
+        </div>
+        
+        <div className="space-y-4 lg:col-span-12">
+          <Card>
+            <CardHeader title="Transaction History" subtitle="Recent on-chain actions executed by your agents." icon={<History className="h-5 w-5 text-zinc-400" />} />
+            <CardBody>
+                <div className="overflow-hidden rounded-xl border border-white/5">
+                  <table className="w-full text-left text-sm text-zinc-300">
+                    <thead className="bg-white/5 text-xs uppercase text-zinc-500">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Tx Hash</th>
+                        <th className="px-4 py-3 font-medium">Action</th>
+                        <th className="px-4 py-3 font-medium">Time</th>
+                        <th className="px-4 py-3 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {txHistory.map((tx, i) => (
+                        <tr key={i} className="hover:bg-white/[0.02]">
+                          <td className="px-4 py-3 font-mono text-xs text-zinc-400 flex items-center gap-1">{tx.hash} <ExternalLink className="h-3 w-3" /></td>
+                          <td className="px-4 py-3">{tx.action}</td>
+                          <td className="px-4 py-3 text-zinc-500">{tx.time}</td>
+                          <td className="px-4 py-3"><Badge tone="ok">{tx.status}</Badge></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+            </CardBody>
+          </Card>
         </div>
       </div>
     </div>
