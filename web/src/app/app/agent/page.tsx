@@ -12,7 +12,7 @@ import { ProofTimeline } from '@/components/ProofTimeline';
 import { OnchainProofCard } from '@/components/OnchainProofCard';
 
 export default function AgentPage() {
-  const { identity, voteReputation, isLoading, hasAgent } = useAgentIdentity();
+  const { identity, submitFeedback, attestAgent, isLoading, hasAgent } = useAgentIdentity();
   const [localError, setLocalError] = useState<string | null>(null);
 
   const metadata = useMemo(() => {
@@ -76,7 +76,7 @@ export default function AgentPage() {
         <div className="space-y-4 lg:col-span-8">
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
-              <CardHeader title="Profile" subtitle="Agent ID + controller." right={<Badge tone={identity.profile.validated ? 'ok' : 'neutral'}>{identity.profile.validated ? 'Validated' : 'Unvalidated'}</Badge>} />
+              <CardHeader title="Profile" subtitle="Agent ID + controller." right={<Badge tone={identity.profile.validated ? 'ok' : 'neutral'}>{identity.profile.validated ? 'Trusted (Validated)' : 'Reputation Only'}</Badge>} />
               <CardBody className="space-y-3">
                 <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
                   <div className="text-[11px] text-zinc-400">Agent ID</div>
@@ -89,14 +89,35 @@ export default function AgentPage() {
                 <div className="text-xs text-zinc-500">
                   Controller: <span className="font-mono text-zinc-200">{identity.profile.controller}</span>
                 </div>
+                {!identity.profile.validated && (
+                  <div className="mt-2 border-t border-white/5 pt-2">
+                     <Button 
+                       variant="secondary" 
+                       className="w-full text-xs"
+                       onClick={async () => {
+                         setLocalError(null);
+                         try {
+                           await attestAgent(identity.agentId, true);
+                         } catch (e) {
+                           setLocalError(e instanceof Error ? e.message : 'Validation failed (are you an allowed validator?)');
+                         }
+                       }}
+                     >
+                       simulate validator attest()
+                     </Button>
+                  </div>
+                )}
               </CardBody>
             </Card>
 
             <Card>
-              <CardHeader title="Reputation" subtitle="One address can vote once per agent." right={<Badge tone="neutral">Live</Badge>} />
+              <CardHeader title="Reputation Signals" subtitle="Feedback tied to execution receipts." right={<Badge tone="neutral">ERC-8004</Badge>} />
               <CardBody className="space-y-3">
                 <div className="text-5xl font-semibold tracking-tight text-white">
                   {identity.reputation > BigInt(0) ? '+' : ''}{identity.reputation.toString()}
+                </div>
+                <div className="text-xs text-zinc-400">
+                  Signals are weighted by payment value & execution success.
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -105,13 +126,13 @@ export default function AgentPage() {
                     onClick={async () => {
                       setLocalError(null);
                       try {
-                        await voteReputation(identity.agentId, true);
+                        await submitFeedback(identity.agentId, 1, 'https://nexusflow.ai/receipt/pos-1');
                       } catch (e) {
                         setLocalError(e instanceof Error ? e.message : 'Upvote failed');
                       }
                     }}
                   >
-                    Upvote
+                    +1 Signal
                   </Button>
                   <Button
                     variant="secondary"
@@ -119,13 +140,13 @@ export default function AgentPage() {
                     onClick={async () => {
                       setLocalError(null);
                       try {
-                        await voteReputation(identity.agentId, false);
+                        await submitFeedback(identity.agentId, -1, 'https://nexusflow.ai/receipt/neg-1');
                       } catch (e) {
                         setLocalError(e instanceof Error ? e.message : 'Downvote failed');
                       }
                     }}
                   >
-                    Downvote
+                    -1 Signal
                   </Button>
                 </div>
               </CardBody>
@@ -144,6 +165,22 @@ export default function AgentPage() {
               </div>
             </div>
           </Accordion>
+
+         {metadata?.services && (
+           <Card>
+             <CardHeader title="Services (Discovery)" subtitle="Endpoints exposed in Registration File." />
+             <CardBody>
+               <div className="space-y-2">
+                 {Array.isArray(metadata.services) && metadata.services.map((s: { name: string; endpoint: string }, i: number) => (
+                   <div key={i} className="flex items-center justify-between rounded-lg border border-white/5 bg-white/5 px-3 py-2">
+                     <span className="text-sm font-medium text-white">{s.name}</span>
+                     <code className="text-xs text-zinc-400">{s.endpoint}</code>
+                   </div>
+                 ))}
+               </div>
+             </CardBody>
+           </Card>
+         )}
         </div>
       </div>
     </div>

@@ -1,30 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import "./interfaces/IAavePool.sol";
+
 interface IERC20Minimal {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
     function transfer(address to, uint256 amount) external returns (bool);
 }
 
-contract MockAavePool {
-    struct ReserveData {
-        uint256 configuration;
-        uint128 liquidityIndex;
-        uint128 currentLiquidityRate;
-        uint128 variableBorrowIndex;
-        uint128 currentVariableBorrowRate;
-        uint128 currentStableBorrowRate;
-        uint40 lastUpdateTimestamp;
-        uint16 id;
-        address aTokenAddress;
-        address stableDebtTokenAddress;
-        address variableDebtTokenAddress;
-        address interestRateStrategyAddress;
-        uint128 accruedToTreasury;
-        uint128 unbacked;
-        uint128 isolationModeTotalDebt;
-    }
-
+contract MockAavePool is IAavePool {
     address public owner;
     mapping(address => uint128) public liquidityRates;
     mapping(address => mapping(address => uint256)) public deposits;
@@ -55,9 +39,9 @@ contract MockAavePool {
         return amount;
     }
 
-    function getReserveData(address asset) external view returns (ReserveData memory data) {
+    function getReserveData(address asset) external view override returns (ReserveData memory data) {
         data = ReserveData({
-            configuration: 0,
+            configuration: IAavePool.ReserveConfigurationMap(0),
             liquidityIndex: 0,
             currentLiquidityRate: liquidityRates[asset],
             variableBorrowIndex: 0,

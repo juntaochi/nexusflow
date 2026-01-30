@@ -19,11 +19,20 @@ export interface X402Config {
   mimeType?: string;
 }
 
+export interface X402SubscriptionConfig extends X402Config {
+  type: "subscription";
+  durationDays: number;
+}
+
 export interface X402PaymentRequirement {
   scheme: "exact";
   network: string;
   payTo: string;
   price: string;
+}
+
+export interface X402SubscriptionRequirement extends X402PaymentRequirement {
+  duration: number; // Duration in seconds
 }
 
 const NETWORK_METADATA: Record<X402NetworkId, { name: string; chainId: number; usdc: Hex }> = {
@@ -67,6 +76,16 @@ export const buildX402Requirement = (
   network: config.network,
   payTo: config.payTo,
   price: formatX402Price(config.priceUsd),
+});
+
+export const buildX402SubscriptionRequirement = (
+  config: X402SubscriptionConfig
+): X402SubscriptionRequirement => ({
+  scheme: "exact",
+  network: config.network,
+  payTo: config.payTo,
+  price: formatX402Price(config.priceUsd),
+  duration: config.durationDays * 24 * 60 * 60,
 });
 
 export const encodeBase64Json = (value: unknown): string =>

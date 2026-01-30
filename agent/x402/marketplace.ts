@@ -11,6 +11,8 @@ export interface StrategyListing {
   agentController: string;
   category: "yield" | "mev" | "arbitrage" | "portfolio";
   priceUSDC: string;
+  subscriptionPriceUSDC?: string; // Optional monthly subscription price
+  subscriptionDuration?: number; // Duration in days
   endpoint: string;
   successRate: number;
   totalCalls: number;
@@ -119,6 +121,24 @@ export class StrategyMarketplace {
   }
 
   /**
+   * Subscribe to a strategy (Mock implementation)
+   */
+  subscribeToStrategy(id: string, userAddress: string) {
+    const strategy = this.strategies.get(id);
+    if (!strategy) throw new Error("Strategy not found");
+    if (!strategy.subscriptionPriceUSDC) throw new Error("Strategy does not support subscription");
+
+    // In a real implementation, this would verify the on-chain payment or NFT ownership
+    console.log(`✅ Subscription activated for ${userAddress} to ${strategy.name}`);
+    return {
+      strategyId: id,
+      subscriber: userAddress,
+      expiresAt: Date.now() + (strategy.subscriptionDuration || 30) * 24 * 60 * 60 * 1000,
+      status: "active"
+    };
+  }
+
+  /**
    * Verify strategy (for admin/governance)
    */
   verifyStrategy(id: string, verified: boolean) {
@@ -142,6 +162,8 @@ globalMarketplace.registerStrategy({
   agentController: "0x742d35Cc6634C0532925a3b844Bc9e7595f0Ab00",
   category: "yield",
   priceUSDC: "0.005",
+  subscriptionPriceUSDC: "50.00", // $50/month
+  subscriptionDuration: 30,
   endpoint: "/api/strategies/yield",
   averageSavings: "2.5%",
   verified: true,
@@ -154,6 +176,8 @@ globalMarketplace.registerStrategy({
   agentController: "0x742d35Cc6634C0532925a3b844Bc9e7595f0Ab00",
   category: "mev",
   priceUSDC: "0.01",
+  subscriptionPriceUSDC: "100.00", // $100/month
+  subscriptionDuration: 30,
   endpoint: "/api/strategies/mev",
   averageSavings: "1.8%",
   verified: true,

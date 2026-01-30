@@ -21,6 +21,11 @@ contract NexusDelegation {
     uint256 public dailySpent;
     uint256 public lastResetDay;
     
+    // ERC20 token daily limits
+    mapping(address => uint256) public tokenDailyLimits;
+    mapping(address => uint256) public tokenDailySpent;
+    mapping(address => uint256) public tokenLastResetDay;
+    
     // Known protocol addresses on Base
     address public constant UNISWAP_V3_ROUTER = 0x2626664c2603336E57B271c5C0b26F421741e481;
     address public constant ZERO_X_EXCHANGE = 0xDef1C0ded9bec7F1a1670819833240f027b25EfF;
@@ -32,6 +37,18 @@ contract NexusDelegation {
     event TargetAllowed(address indexed target, bool allowed);
     event DailyLimitSet(uint256 limit);
     event DailyLimitReset(uint256 newDay);
+    event TokenDailyLimitSet(address indexed token, uint256 limit);
+    event TokenDailyLimitReset(address indexed token, uint256 newDay);
+    event SocialRecoveryConfigured(address[] guardians, uint256 threshold);
+    event RecoveryExecuted(address newOwner);
+
+    // Social Recovery
+    address[] public guardians;
+    uint256 public recoveryThreshold;
+    mapping(address => bool) public isGuardian;
+    mapping(address => bool) public hasVotedForRecovery;
+    uint256 public recoveryVotes;
+    address public newOwnerCandidate;
 
     modifier onlyOwner() {
         require(msg.sender == owner || msg.sender == address(this), "Not authorized");
@@ -102,6 +119,68 @@ contract NexusDelegation {
     }
 
     /**
+     * @notice Set daily spending limit for a specific token.
+     */
+    function setTokenDailyLimit(address _token, uint256 _limit) external onlyOwner {
+        tokenDailyLimits[_token] = _limit;
+        emit TokenDailyLimitSet(_token, _limit);
+    }
+    
+    /**
+     * @notice Configure social recovery.
+     */
+    function configureRecovery(address[] calldata _guardians, uint256 _threshold) external onlyOwner {
+        require(_threshold > 0 && _threshold <= _guardians.length, "Invalid threshold");
+        
+        // Clear old guardians
+        for (uint256 i = 0; i < guardians.length; i++) {
+            isGuardian[guardians[i]] = false;
+        }
+        delete guardians;
+        
+        for (uint256 i = 0; i < _guardians.length; i++) {
+            require(!isGuardian[_guardians[i]], "Duplicate guardian");
+            isGuardian[_guardians[i]] = true;
+            guardians.push(_guardians[i]);
+        }
+        
+        recoveryThreshold = _threshold;
+        emit SocialRecoveryConfigured(_guardians, _threshold);
+    }
+    
+    /**
+     * @notice Vote for recovery.
+     */
+    function voteForRecovery(address _newOwner) external {
+        require(isGuardian[msg.sender], "Not a guardian");
+        
+        if (_newOwner != newOwnerCandidate) {
+            // New candidate, reset votes
+            newOwnerCandidate = _newOwner;
+            recoveryVotes = 0;
+            // Clear all votes (optimizable but keeping simple for MVP)
+            for (uint256 i = 0; i < guardians.length; i++) {
+                hasVotedForRecovery[guardians[i]] = false;
+            }
+        }
+        
+        require(!hasVotedForRecovery[msg.sender], "Already voted");
+        hasVotedForRecovery[msg.sender] = true;
+        recoveryVotes++;
+        
+        if (recoveryVotes >= recoveryThreshold) {
+            owner = newOwnerCandidate;
+            // Reset recovery state
+            newOwnerCandidate = address(0);
+            recoveryVotes = 0;
+            for (uint256 i = 0; i < guardians.length; i++) {
+                hasVotedForRecovery[guardians[i]] = false;
+            }
+            emit RecoveryExecuted(owner);
+        }
+    }
+
+    /**
      * @notice Execute an intent with whitelist and limit checks.
      */
     function executeIntent(address _target, bytes calldata _data) external payable onlyValidSession {
@@ -111,6 +190,16 @@ contract NexusDelegation {
         // Check and update daily limit
         _checkAndUpdateDailyLimit(msg.value);
         
+        // Check token limits if applicable (simple heuristic: 20 bytes prefix match for transfer/approve)
+        // transfer(address,uint256) -> 0xa9059cbb
+        // approve(address,uint256) -> 0x095ea7b3
+        if (_data.length >= 68) {
+            bytes4 selector = bytes4(_data[:4]);
+            if (selector == 0xa9059cbb || selector == 0x095ea7b3) {
+                _checkAndUpdateTokenDailyLimit(_target, abi.decode(_data[36:], (uint256)));
+            }
+        }
+
         // Execute the call
         (bool success, bytes memory returnData) = _target.call{value: msg.value}(_data);
         require(success, string(abi.encodePacked("Execution failed: ", returnData)));
@@ -137,6 +226,13 @@ contract NexusDelegation {
         _checkAndUpdateDailyLimit(totalValue);
         
         for (uint256 i = 0; i < _targets.length; i++) {
+            // Check token limits for batch
+            if (_datas[i].length >= 68) {
+                bytes4 selector = bytes4(_datas[i][:4]);
+                if (selector == 0xa9059cbb || selector == 0x095ea7b3) {
+                     _checkAndUpdateTokenDailyLimit(_targets[i], abi.decode(_datas[i][36:], (uint256)));
+                }
+            }
             (bool success, ) = _targets[i].call{value: _values[i]}(_datas[i]);
             require(success, "Batch execution failed");
             emit IntentExecuted(_targets[i], _datas[i], _values[i]);
@@ -184,6 +280,25 @@ contract NexusDelegation {
         
         require(dailySpent + _value <= dailyLimit, "Daily limit exceeded");
         dailySpent += _value;
+    }
+
+    /**
+     * @notice Check if token daily limit allows this transaction.
+     */
+    function _checkAndUpdateTokenDailyLimit(address _token, uint256 _amount) internal {
+        uint256 limit = tokenDailyLimits[_token];
+        if (limit == 0) return; // No limit set for this token
+        
+        uint256 currentDay = block.timestamp / 1 days;
+        
+        if (currentDay > tokenLastResetDay[_token]) {
+            tokenDailySpent[_token] = 0;
+            tokenLastResetDay[_token] = currentDay;
+            emit TokenDailyLimitReset(_token, currentDay);
+        }
+        
+        require(tokenDailySpent[_token] + _amount <= limit, "Token daily limit exceeded");
+        tokenDailySpent[_token] += _amount;
     }
 
     /**

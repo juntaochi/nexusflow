@@ -10,14 +10,16 @@ contract AgentRegistryTest is Test {
     address public agent1 = makeAddr("agent1");
     address public agent2 = makeAddr("agent2");
     address public voter = makeAddr("voter");
+    address public validator = makeAddr("validator");
 
     event AgentRegistered(uint256 indexed agentId, address indexed controller, string name);
-    event AgentUpdated(uint256 indexed agentId, string name, string metadataURI);
-    event ReputationUpdated(uint256 indexed agentId, int256 delta, int256 newScore);
-    event AgentValidated(uint256 indexed agentId, bool validated);
+    event AgentURIUpdated(uint256 indexed agentId, string agentURI);
+    event ReputationSignal(uint256 indexed agentId, address indexed rater, int256 delta, bytes32 jobHash, string evidenceURI);
+    event AgentAttested(uint256 indexed agentId, address indexed validator, bool ok, bytes32 jobHash, string evidenceURI);
 
     function setUp() public {
         registry = new AgentRegistry();
+        registry.setValidator(validator, true);
     }
 
     function test_RegisterAgent() public {
@@ -58,10 +60,12 @@ contract AgentRegistryTest is Test {
         vm.prank(agent1);
         uint256 agentId = registry.registerAgent("Test Agent", "ipfs://Qm1");
         
+        bytes32 jobHash = keccak256("job1");
+        
         vm.prank(voter);
         vm.expectEmit(true, false, false, true);
-        emit ReputationUpdated(agentId, 1, 1);
-        registry.updateReputation(agentId, 1);
+        emit ReputationSignal(agentId, voter, 1, jobHash, "https://ev1");
+        registry.submitFeedback(agentId, 1, jobHash, "https://ev1");
         
         assertEq(registry.getReputation(agentId), 1);
     }
@@ -71,7 +75,7 @@ contract AgentRegistryTest is Test {
         uint256 agentId = registry.registerAgent("Test Agent", "ipfs://Qm1");
         
         vm.prank(voter);
-        registry.updateReputation(agentId, -1);
+        registry.submitFeedback(agentId, -1, keccak256("job2"), "https://ev2");
         
         assertEq(registry.getReputation(agentId), -1);
     }
@@ -81,20 +85,8 @@ contract AgentRegistryTest is Test {
         uint256 agentId = registry.registerAgent("Test Agent", "ipfs://Qm1");
         
         vm.prank(voter);
-        vm.expectRevert("Delta must be +1 or -1");
-        registry.updateReputation(agentId, 5);
-    }
-
-    function test_UpdateReputation_Revert_DoubleVote() public {
-        vm.prank(agent1);
-        uint256 agentId = registry.registerAgent("Test Agent", "ipfs://Qm1");
-        
-        vm.prank(voter);
-        registry.updateReputation(agentId, 1);
-        
-        vm.prank(voter);
-        vm.expectRevert("Already voted for this agent");
-        registry.updateReputation(agentId, 1);
+        vm.expectRevert("Delta out of range");
+        registry.submitFeedback(agentId, 50, keccak256("job3"), "https://ev3");
     }
 
     function test_UpdateReputation_Revert_SelfVote() public {
@@ -103,7 +95,7 @@ contract AgentRegistryTest is Test {
         
         vm.prank(agent1);
         vm.expectRevert("Cannot vote for own agent");
-        registry.updateReputation(agentId, 1);
+        registry.submitFeedback(agentId, 1, keccak256("job4"), "https://ev4");
     }
 
     function test_UpdateAgent() public {
@@ -112,7 +104,7 @@ contract AgentRegistryTest is Test {
         
         vm.prank(agent1);
         vm.expectEmit(true, false, false, true);
-        emit AgentUpdated(agentId, "New Name", "ipfs://New");
+        emit AgentURIUpdated(agentId, "ipfs://New");
         registry.updateAgent(agentId, "New Name", "ipfs://New");
         
         IERC8004.AgentProfile memory profile = registry.getAgent(agentId);
@@ -133,12 +125,17 @@ contract AgentRegistryTest is Test {
         vm.prank(agent1);
         uint256 agentId = registry.registerAgent("Test Agent", "ipfs://Qm1");
         
+        bytes32 jobHash = keccak256("val1");
+        
         vm.expectEmit(true, false, false, true);
-        emit AgentValidated(agentId, true);
-        registry.setValidated(agentId, true);
+        emit AgentAttested(agentId, validator, true, jobHash, "https://val1");
+        
+        vm.prank(validator);
+        registry.attest(agentId, jobHash, true, "https://val1");
         
         IERC8004.AgentProfile memory profile = registry.getAgent(agentId);
         assertTrue(profile.validated);
+        assertTrue(registry.isTrusted(agentId));
     }
 
     function test_GetAgent_Revert_NotExists() public {

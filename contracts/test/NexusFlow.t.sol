@@ -15,6 +15,7 @@ contract NexusFlowTest is Test {
     event IntentExecuted(address indexed target, bytes data, uint256 value);
     event TargetAllowed(address indexed target, bool allowed);
     event DailyLimitSet(uint256 limit);
+    event TokenDailyLimitSet(address indexed token, uint256 limit);
 
     function setUp() public {
         nexus = new NexusDelegation();
@@ -41,6 +42,77 @@ contract NexusFlowTest is Test {
         
         assertTrue(nexus.sessionKeys(agent));
         assertEq(nexus.sessionKeyExpiry(agent), expiry);
+    }
+
+    function test_TokenDailyLimit() public {
+        address token = makeAddr("token");
+        uint256 limit = 1000 * 1e18;
+        
+        vm.prank(user);
+        nexus.setTokenDailyLimit(token, limit);
+        
+        assertEq(nexus.tokenDailyLimits(token), limit);
+    }
+    
+    function test_TokenDailyLimit_Exceeded() public {
+        address token = makeAddr("token");
+        uint256 limit = 1000 * 1e18;
+        
+        vm.prank(user);
+        nexus.setTokenDailyLimit(token, limit);
+        nexus.authorizeSessionKey(agent, true);
+        
+        // Mock token transfer call: transfer(address,uint256)
+        // selector: 0xa9059cbb
+        // target: recipient (address)
+        // amount: 600 * 1e18
+        
+        address recipient = makeAddr("recipient");
+        bytes memory data1 = abi.encodeWithSelector(0xa9059cbb, recipient, 600 * 1e18);
+        
+        // Allow any call to token for this test since we are just checking logic
+        // We need to whitelist the token address first
+        vm.prank(user);
+        nexus.setAllowedTarget(token, true);
+        
+        // We need to mock the token call to return true
+        vm.mockCall(token, data1, abi.encode(true));
+        
+        vm.prank(agent);
+        nexus.executeIntent(token, data1);
+        
+        // Second call should exceed limit (600 + 500 > 1000)
+        bytes memory data2 = abi.encodeWithSelector(0xa9059cbb, recipient, 500 * 1e18);
+        vm.mockCall(token, data2, abi.encode(true));
+        
+        vm.prank(agent);
+        vm.expectRevert("Token daily limit exceeded");
+        nexus.executeIntent(token, data2);
+    }
+    
+    function test_SocialRecovery() public {
+        address[] memory guardians = new address[](2);
+        guardians[0] = makeAddr("guardian0");
+        guardians[1] = makeAddr("guardian1");
+        
+        vm.prank(user);
+        nexus.configureRecovery(guardians, 2);
+        
+        address newOwner = makeAddr("newOwner");
+        
+        // Guardian 0 votes
+        vm.prank(guardians[0]);
+        nexus.voteForRecovery(newOwner);
+        
+        // Owner should not change yet
+        assertEq(nexus.owner(), user);
+        
+        // Guardian 1 votes
+        vm.prank(guardians[1]);
+        nexus.voteForRecovery(newOwner);
+        
+        // Owner should change
+        assertEq(nexus.owner(), newOwner);
     }
 
     function test_SessionExpiry() public {

@@ -7,6 +7,7 @@ import { CreateAction, ActionProvider, ViemWalletProvider } from "@coinbase/agen
 import { z } from "zod";
 import { createX402Client, X402PaymentResult } from "./client";
 import type { StrategyListing } from "./marketplace.js";
+import { keccak256, toBytes, toHex } from "viem";
 
 /**
  * X402NexusActionProvider - Extends agent capabilities with paid API access
@@ -72,6 +73,22 @@ export class X402NexusActionProvider extends ActionProvider<ViemWalletProvider> 
       body: args.body,
     });
 
+    // Augment result with Receipt Info for ERC-8004
+    if (result.success) {
+      const jobHash = toHex(keccak256(toBytes(JSON.stringify({
+        url: args.url,
+        request: args.body,
+        response: result.data,
+        ts: Date.now()
+      }))));
+      
+      (result as any).receipt = {
+        jobHash,
+        evidenceURI: `https://nexusflow.ai/receipt/${jobHash.slice(0, 10)}`, // Mock URL for demo
+        timestamp: Date.now()
+      };
+    }
+
     return JSON.stringify(result);
   }
 
@@ -122,6 +139,11 @@ export class X402NexusActionProvider extends ActionProvider<ViemWalletProvider> 
       paymentMade: result.paymentMade,
       paymentAmount: result.paymentAmount,
       paymentAsset: result.paymentAsset,
+      receipt: {
+        jobHash: toHex(keccak256(toBytes(`swap-${Date.now()}`))),
+        evidenceURI: `https://nexusflow.ai/receipt/swap-${Date.now()}`,
+        timestamp: Date.now()
+      }
     });
   }
 
@@ -155,6 +177,14 @@ export class X402NexusActionProvider extends ActionProvider<ViemWalletProvider> 
         },
       }
     );
+
+    if (result.success) {
+      (result as any).receipt = {
+        jobHash: toHex(keccak256(toBytes(`intel-${Date.now()}`))),
+        evidenceURI: `https://nexusflow.ai/receipt/intel-${Date.now()}`,
+        timestamp: Date.now()
+      };
+    }
 
     return JSON.stringify(result);
   }

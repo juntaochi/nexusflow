@@ -2,24 +2,31 @@
 pragma solidity ^0.8.26;
 
 import "./IERC8004.sol";
+import "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
+import "openzeppelin-contracts/contracts/utils/Pausable.sol";
 
 /**
  * @title AgentRegistry
  * @notice ERC-8004 compliant registry for trustless AI agents.
- * @dev Implements agent registration, reputation tracking, and discovery.
+ * @dev Implements agent registration (ERC721), reputation tracking, and discovery.
  */
-contract AgentRegistry is IERC8004 {
+contract AgentRegistry is IERC8004, ERC721URIStorage, Ownable2Step, Pausable {
+
     uint256 private _nextAgentId = 1;
-    
+
     mapping(uint256 => AgentProfile) private _agents;
     mapping(address => uint256) public agentIdByController;
     mapping(uint256 => int256) public reputationScores;
-    mapping(uint256 => mapping(address => bool)) public hasVoted;
     
-    event AgentRegistered(uint256 indexed agentId, address indexed controller, string name);
-    event AgentUpdated(uint256 indexed agentId, string name, string metadataURI);
-    event ReputationUpdated(uint256 indexed agentId, int256 delta, int256 newScore);
-    event AgentValidated(uint256 indexed agentId, bool validated);
+    // Validation storage
+    mapping(address => bool) public allowedValidators;
+    mapping(uint256 => mapping(address => ValidationAttestation)) public attestations;
+    
+    // Threshold for reputation to be considered trusted without validation
+    int256 public constant TRUST_THRESHOLD = 10;
+
+    constructor() ERC721("NexusFlow Agent", "NFA") Ownable(msg.sender) {}
 
     modifier onlyController(uint256 agentId) {
         require(_agents[agentId].controller == msg.sender, "Not agent controller");
@@ -32,12 +39,16 @@ contract AgentRegistry is IERC8004 {
      * @param metadataURI URI pointing to agent metadata (IPFS, HTTP, etc.).
      * @return agentId The unique ID assigned to this agent.
      */
-    function registerAgent(string calldata name, string calldata metadataURI) external returns (uint256 agentId) {
+    function registerAgent(string calldata name, string calldata metadataURI) external whenNotPaused returns (uint256 agentId) {
         require(bytes(name).length > 0, "Name cannot be empty");
         require(agentIdByController[msg.sender] == 0, "Controller already has an agent");
         
         agentId = _nextAgentId++;
         
+        // Mint ERC721 Identity
+        _safeMint(msg.sender, agentId);
+        _setTokenURI(agentId, metadataURI);
+
         _agents[agentId] = AgentProfile({
             name: name,
             metadataURI: metadataURI,
@@ -62,20 +73,76 @@ contract AgentRegistry is IERC8004 {
     }
 
     /**
-     * @notice Update agent reputation (upvote/downvote).
+     * @notice Submit feedback with evidence (Reputation Signal).
      * @param agentId The agent's unique ID.
-     * @param delta Positive for upvote, negative for downvote.
+     * @param delta +1 or -1 (or weighted).
+     * @param jobHash Hash of request+payment+response.
+     * @param evidenceURI Link to the Execution Receipt.
      */
-    function updateReputation(uint256 agentId, int256 delta) external {
+    function submitFeedback(uint256 agentId, int256 delta, bytes32 jobHash, string calldata evidenceURI) external {
         require(_agents[agentId].controller != address(0), "Agent does not exist");
-        require(delta == 1 || delta == -1, "Delta must be +1 or -1");
-        require(!hasVoted[agentId][msg.sender], "Already voted for this agent");
+        // For demo simplicity, we allow multiple feedbacks but restrict delta size
+        require(delta >= -10 && delta <= 10, "Delta out of range");
         require(_agents[agentId].controller != msg.sender, "Cannot vote for own agent");
         
-        hasVoted[agentId][msg.sender] = true;
         reputationScores[agentId] += delta;
         
-        emit ReputationUpdated(agentId, delta, reputationScores[agentId]);
+        emit ReputationSignal(agentId, msg.sender, delta, jobHash, evidenceURI);
+    }
+
+    /**
+     * @notice Validator attestation for trust upgrade.
+     * @param agentId Agent ID.
+     * @param jobHash Job that was validated.
+     * @param ok Result of validation.
+     * @param evidenceURI Proof of validation.
+     */
+    function attest(uint256 agentId, bytes32 jobHash, bool ok, string calldata evidenceURI) external {
+        require(allowedValidators[msg.sender], "Not an allowed validator");
+        
+        attestations[agentId][msg.sender] = ValidationAttestation({
+            ok: ok,
+            jobHash: jobHash,
+            evidenceURI: evidenceURI,
+            timestamp: uint64(block.timestamp)
+        });
+
+        // If attested OK, we mark the simplified profile as validated too
+        if (ok) {
+            _agents[agentId].validated = true;
+        }
+
+        emit AgentAttested(agentId, msg.sender, ok, jobHash, evidenceURI);
+    }
+
+    /**
+     * @notice Admin manages validators.
+     */
+    function setValidator(address validator, bool allowed) external onlyOwner {
+        allowedValidators[validator] = allowed;
+    }
+
+    /**
+     * @notice Pause the contract (emergency stop).
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @notice Unpause the contract.
+     */
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    /**
+     * @notice Check if an agent is trusted (Reputation > Threshold OR Validated).
+     */
+    function isTrusted(uint256 agentId) external view returns (bool) {
+        if (_agents[agentId].validated) return true;
+        if (reputationScores[agentId] >= TRUST_THRESHOLD) return true;
+        return false;
     }
 
     /**
@@ -89,19 +156,9 @@ contract AgentRegistry is IERC8004 {
         
         _agents[agentId].name = name;
         _agents[agentId].metadataURI = metadataURI;
+        _setTokenURI(agentId, metadataURI);
         
-        emit AgentUpdated(agentId, name, metadataURI);
-    }
-
-    /**
-     * @notice Validate an agent (governance/admin function).
-     * @param agentId The agent's unique ID.
-     * @param validated Whether the agent is validated.
-     */
-    function setValidated(uint256 agentId, bool validated) external {
-        require(_agents[agentId].controller != address(0), "Agent does not exist");
-        _agents[agentId].validated = validated;
-        emit AgentValidated(agentId, validated);
+        emit AgentURIUpdated(agentId, metadataURI);
     }
 
     /**
@@ -129,5 +186,14 @@ contract AgentRegistry is IERC8004 {
     function getReputation(uint256 agentId) external view returns (int256 score) {
         require(_agents[agentId].controller != address(0), "Agent does not exist");
         return reputationScores[agentId];
+    }
+
+    // Override for ERC721URIStorage
+    function tokenURI(uint256 tokenId) public view override(ERC721URIStorage) returns (string memory) {
+        return super.tokenURI(tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721URIStorage) returns (bool) {
+        return super.supportsInterface(interfaceId);
     }
 }

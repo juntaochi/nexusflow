@@ -53,12 +53,26 @@ const AGENT_REGISTRY_ABI = [
     outputs: [{ name: 'score', type: 'int256' }],
   },
   {
-    name: 'updateReputation',
+    name: 'submitFeedback',
     type: 'function',
     stateMutability: 'nonpayable',
     inputs: [
       { name: 'agentId', type: 'uint256' },
       { name: 'delta', type: 'int256' },
+      { name: 'jobHash', type: 'bytes32' },
+      { name: 'evidenceURI', type: 'string' },
+    ],
+    outputs: [],
+  },
+  {
+    name: 'attest',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'agentId', type: 'uint256' },
+      { name: 'jobHash', type: 'bytes32' },
+      { name: 'ok', type: 'bool' },
+      { name: 'evidenceURI', type: 'string' },
     ],
     outputs: [],
   },
@@ -95,6 +109,8 @@ interface AgentIdentity {
   nullifierHash?: string;
 }
 
+import { keccak256, stringToBytes } from 'viem';
+
 export function useAgentIdentity() {
   const { address } = useAccount();
   const publicClient = usePublicClient();
@@ -105,39 +121,32 @@ export function useAgentIdentity() {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Verify World ID proof with backend
+   * Verify World ID Proof (Backend call)
    */
-  const verifyWorldID = useCallback(async (proof: ISuccessResult): Promise<string | null> => {
-    if (!address) {
-      throw new Error('Wallet not connected');
-    }
-
-    const response = await fetch('/api/verify/worldid', {
+  const verifyWorldID = useCallback(async (proof: ISuccessResult) => {
+    const res = await fetch('/api/verify/worldid', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ proof, userAddress: address }),
+      body: JSON.stringify(proof),
     });
 
-    const result = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.error || 'World ID verification failed');
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'Verification failed');
     }
 
-    return result.nullifierHash;
-  }, [address]);
+    const data = await res.json();
+    return data.nullifier_hash as string;
+  }, []);
 
   /**
-   * Fetch current agent identity from registry
+   * Fetch Identity
    */
   const fetchAgentIdentity = useCallback(async () => {
     if (!address || !publicClient) return;
-
+    
     setIsLoading(true);
-    setError(null);
-
     try {
-      // Get agent ID for this address
       const agentId = await publicClient.readContract({
         address: AGENT_REGISTRY_ADDRESS,
         abi: AGENT_REGISTRY_ABI,
@@ -191,6 +200,74 @@ export function useAgentIdentity() {
       setIsLoading(false);
     }
   }, [address, publicClient]);
+  /**
+   * Submit feedback (Reputation Signal)
+   */
+  const submitFeedback = useCallback(async (
+    targetAgentId: bigint,
+    delta: number,
+    evidenceURI: string = 'https://nexusflow.ai/receipt/mock-123'
+  ) => {
+    if (!walletClient || !publicClient) throw new Error('Wallet not connected');
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Mock jobHash for demo
+      const jobHash = keccak256(stringToBytes(`job-${Date.now()}`));
+      
+      const hash = await walletClient.writeContract({
+        address: AGENT_REGISTRY_ADDRESS,
+        abi: AGENT_REGISTRY_ABI,
+        functionName: 'submitFeedback',
+        args: [targetAgentId, BigInt(delta), jobHash, evidenceURI],
+      });
+
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      if (identity && targetAgentId === identity.agentId) {
+        await fetchAgentIdentity();
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Feedback failed';
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [walletClient, publicClient, identity, fetchAgentIdentity]);
+
+  /**
+   * Validate Agent (Attestation)
+   */
+  const attestAgent = useCallback(async (
+    targetAgentId: bigint,
+    ok: boolean
+  ) => {
+    if (!walletClient || !publicClient) throw new Error('Wallet not connected');
+    
+    setIsLoading(true);
+    try {
+      const jobHash = keccak256(stringToBytes(`validation-${Date.now()}`));
+      const evidenceURI = 'https://nexusflow.ai/audit/report-001';
+
+      const hash = await walletClient.writeContract({
+        address: AGENT_REGISTRY_ADDRESS,
+        abi: AGENT_REGISTRY_ABI,
+        functionName: 'attest',
+        args: [targetAgentId, jobHash, ok, evidenceURI],
+      });
+
+      await publicClient.waitForTransactionReceipt({ hash });
+      await fetchAgentIdentity();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Attestation failed');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [walletClient, publicClient, fetchAgentIdentity]);
 
   /**
    * Register agent in ERC-8004 registry
@@ -294,43 +371,8 @@ export function useAgentIdentity() {
   }, [address, walletClient, publicClient, verifyWorldID, fetchAgentIdentity]);
 
   /**
-   * Vote on agent reputation
+   * Legacy: Vote on agent reputation (Removed in favor of feedback)
    */
-  const voteReputation = useCallback(async (
-    targetAgentId: bigint,
-    isUpvote: boolean
-  ) => {
-    if (!walletClient || !publicClient) {
-      throw new Error('Wallet not connected');
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const delta = isUpvote ? BigInt(1) : BigInt(-1);
-
-      const hash = await walletClient.writeContract({
-        address: AGENT_REGISTRY_ADDRESS,
-        abi: AGENT_REGISTRY_ABI,
-        functionName: 'updateReputation',
-        args: [targetAgentId, delta],
-      });
-
-      await publicClient.waitForTransactionReceipt({ hash });
-
-      // Refresh if voting on own agent
-      if (identity && targetAgentId === identity.agentId) {
-        await fetchAgentIdentity();
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Vote failed';
-      setError(message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [walletClient, publicClient, identity, fetchAgentIdentity]);
 
   // Auto-fetch identity when address changes
   useEffect(() => {
@@ -346,7 +388,8 @@ export function useAgentIdentity() {
     isLoading,
     error,
     registerAgent,
-    voteReputation,
+    submitFeedback,
+    attestAgent,
     fetchAgentIdentity,
     hasAgent: identity !== null,
   };

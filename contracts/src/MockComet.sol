@@ -6,10 +6,12 @@ interface IERC20MinimalComet {
     function transfer(address to, uint256 amount) external returns (bool);
 }
 
-contract MockComet {
+import "./interfaces/IComet.sol";
+
+contract MockComet is IComet {
     address public owner;
     uint256 public utilization;
-    uint256 public supplyRatePerSecond;
+    uint64 public supplyRatePerSecond;
     mapping(address => uint256) public deposits;
 
     modifier onlyOwner() {
@@ -21,25 +23,25 @@ contract MockComet {
         owner = msg.sender;
     }
 
-    function setRates(uint256 newUtilization, uint256 newSupplyRatePerSecond) external onlyOwner {
+    function setRates(uint256 newUtilization, uint64 newSupplyRatePerSecond) external onlyOwner {
         utilization = newUtilization;
         supplyRatePerSecond = newSupplyRatePerSecond;
     }
 
-    function getUtilization() external view returns (uint256) {
+    function getUtilization() external view override returns (uint256) {
         return utilization;
     }
 
-    function getSupplyRate(uint256) external view returns (uint256) {
+    function getSupplyRate(uint256) external view override returns (uint64) {
         return supplyRatePerSecond;
     }
 
-    function supply(address asset, uint256 amount) external {
+    function supply(address asset, uint256 amount) external override {
         require(IERC20MinimalComet(asset).transferFrom(msg.sender, address(this), amount), "Transfer failed");
         deposits[msg.sender] += amount;
     }
 
-    function withdraw(address asset, uint256 amount) external {
+    function withdraw(address asset, uint256 amount) external override {
         uint256 balance = deposits[msg.sender];
         require(balance >= amount, "Insufficient balance");
         deposits[msg.sender] = balance - amount;

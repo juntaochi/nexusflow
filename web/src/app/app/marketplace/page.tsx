@@ -11,12 +11,14 @@ import { Accordion } from '@/components/ui/Accordion';
 import { KPIBar } from '@/components/KPIBar';
 import { ProofTimeline } from '@/components/ProofTimeline';
 import { OnchainProofCard } from '@/components/OnchainProofCard';
+import { BarChart3, Layers, LineChart } from 'lucide-react';
 
 function StrategyCard({
   title,
   description,
   intent,
   icon,
+  badges,
   onRun,
   disabled,
 }: {
@@ -24,6 +26,7 @@ function StrategyCard({
   description: string;
   intent: string;
   icon: React.ReactNode;
+  badges?: React.ReactNode;
   onRun: () => void;
   disabled: boolean;
 }) {
@@ -34,10 +37,10 @@ function StrategyCard({
         subtitle={description}
         right={
           <div className="flex items-center gap-2">
+            {badges}
             <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/30 text-zinc-200">
               {icon}
             </div>
-            <Badge tone={disabled ? 'neutral' : 'ok'}>{disabled ? 'Locked' : 'Ready'}</Badge>
           </div>
         }
       />
@@ -52,6 +55,19 @@ function StrategyCard({
       </CardBody>
     </Card>
   );
+}
+
+function RiskBadge({ risk }: { risk: 'low' | 'medium' | 'high' }) {
+  const tones = {
+    low: 'ok',
+    medium: 'warn',
+    high: 'critical',
+  } as const;
+  return <Badge tone={tones[risk]}>Risk: {risk.toUpperCase()}</Badge>;
+}
+
+function APYBadge({ apy }: { apy: number }) {
+  return <Badge tone="neutral">Avg APY: {(apy * 100).toFixed(1)}%</Badge>;
 }
 
 export default function MarketplacePage() {
@@ -105,11 +121,59 @@ export default function MarketplacePage() {
           </Card>
 
       <div className="grid gap-4 lg:grid-cols-3">
+          {/* Week 2: Aggregator Strategy */}
+          <StrategyCard
+              title="Intra-Chain Rebalance"
+              description="Optimize yield within a single chain to save on bridge fees."
+              intent="Rebalance USDC on Base from Aave to Moonwell if APY delta > 2%"
+              icon={<Layers className="h-4 w-4" />}
+              badges={<><RiskBadge risk="low" /><APYBadge apy={0.082} /></>}
+              disabled={disabled}
+              onRun={async () => {
+                  setLogs([]);
+                  await sendPaidIntent('Rebalance USDC on Base from Aave to Moonwell if APY delta > 2%', (m) => {
+                      setLogs((p) => [...p, m]);
+                  });
+              }}
+          />
+
+          {/* Week 1: Cross-Chain Yield */}
+          <StrategyCard
+              title="Cross-Chain Arbitrage"
+              description="Move assets to the highest yielding Superchain protocol."
+              intent="Move USDC from Base Aave to OP Compound if spread > 0.5%"
+              icon={<BarChart3 className="h-4 w-4" />}
+              badges={<><RiskBadge risk="medium" /><APYBadge apy={0.125} /></>}
+              disabled={disabled}
+              onRun={async () => {
+                  setLogs([]);
+                  await sendPaidIntent('Move USDC from Base Aave to OP Compound if spread > 0.5%', (m) => {
+                      setLogs((p) => [...p, m]);
+                  });
+              }}
+          />
+
+          <StrategyCard
+              title="Degen Liquidity"
+              description="High-risk LP farming on new DEXs."
+              intent="Provide USDC/ETH liquidity on Aerodrome Base"
+              icon={<LineChart className="h-4 w-4" />}
+              badges={<><RiskBadge risk="high" /><APYBadge apy={0.452} /></>}
+              disabled={disabled}
+              onRun={async () => {
+                  setLogs([]);
+                  await sendPaidIntent('Provide USDC/ETH liquidity on Aerodrome Base', (m) => {
+                      setLogs((p) => [...p, m]);
+                  });
+              }}
+          />
+
             <StrategyCard
           title="Pay contractors"
           description="Pay people by intent, not by app permissions."
           intent="Send 300 USDC to 0x0000000000000000000000000000000000000000 for January work"
           icon={<Briefcase className="h-4 w-4" />}
+          badges={<RiskBadge risk="low" />}
               disabled={disabled}
               onRun={async () => {
                 setLogs([]);
@@ -124,6 +188,7 @@ export default function MarketplacePage() {
           description="Automatic settlement once a condition is met."
           intent="Pay invoice #124 in USDC on Base when due"
           icon={<FileText className="h-4 w-4" />}
+          badges={<RiskBadge risk="low" />}
               disabled={disabled}
               onRun={async () => {
                 setLogs([]);
@@ -138,6 +203,7 @@ export default function MarketplacePage() {
           description="Least-privilege spending with caps + alerts."
           intent="Set a monthly spend cap of 200 USDC for AI tools and alert on breach"
           icon={<ShieldCheck className="h-4 w-4" />}
+          badges={<RiskBadge risk="low" />}
           disabled={disabled}
           onRun={async () => {
             setLogs([]);
