@@ -419,3 +419,28 @@ Route (app)
 - [x] Theme switcher and wallet connection are accessible from every page.
 - [x] Responsive layout accommodates different screen sizes.
 
+
+## Dependency Resolution: Wagmi v3 & RainbowKit
+
+### Issue
+`npm install` was failing with `ERESOLVE` because `@rainbow-me/rainbowkit@2.2.10` requires `wagmi@^2.9.0`, but the project is using `wagmi@3.4.1`.
+
+### Context
+The codebase is already implemented using Wagmi v3 patterns (e.g., `useWriteContract` instead of `useContractWrite`). Downgrading to Wagmi v2 would require a major refactor of all contract hooks.
+
+### Solution
+Implemented an `overrides` section in `web/package.json` to force RainbowKit to use the project's Wagmi version:
+```json
+"overrides": {
+  "@rainbow-me/rainbowkit": {
+    "wagmi": ""
+  }
+}
+```
+This allows `npm install` to proceed without using `--legacy-peer-deps` on every command.
+
+### Verification
+- [x] `npm install` succeeds.
+- [x] `npm run build` succeeds with zero errors.
+- [x] Runtime hooks (analyzed via grep) follow Wagmi v3 signatures.
+
