@@ -1,0 +1,21 @@
+[data-theme='glass'] {
+  --theme-primary: #6366f1;
+  --theme-secondary: #ec4899;
+  --theme-bg: #f8fafc;
+  --theme-surface: rgba(255, 255, 255, 0.4);
+  --theme-text: #0f172a;
+  --theme-text-muted: #64748b;
+  --theme-border: rgba(255, 255, 255, 0.2);
+  --theme-glow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  --theme-radius: 24px;
+}
+
+[data-theme='glass'] body {
+  background: linear-gradient(135deg, #e0e7ff 0%, #fdf2f8 100%);
+  color: var(--theme-text);
+}
+
+[data-theme='glass'] .backdrop-blur-xl {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}

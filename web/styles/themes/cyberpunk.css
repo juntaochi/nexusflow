@@ -1,0 +1,8 @@
+[data-theme='cyberpunk'] {
+  --theme-primary: #00ffff;
+  --theme-secondary: #ff00ff;
+  --theme-bg: #0a0a0f;
+  --theme-surface: #1a1a2e;
+  --theme-text: #ffffff;
+  --theme-glow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
