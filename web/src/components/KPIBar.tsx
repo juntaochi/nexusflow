@@ -1,6 +1,6 @@
 'use client';
 
-import { useChainId } from 'wagmi';
+import { useChainId, useReadContract } from 'wagmi';
 import { BadgeCheck, CreditCard, KeyRound, Users } from 'lucide-react';
 import { use7702 } from '@/hooks/use7702';
 import { useX402 } from '@/hooks/useX402';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { explorerTxUrl } from '@/lib/explorer';
 import { getChainById } from '@/lib/superchain';
 import { TrendingUp, DollarSign } from 'lucide-react';
+import { formatUnits } from 'viem';
 
 function shortHash(value: string, head = 10, tail = 6) {
   if (!value) return '';
@@ -39,6 +40,16 @@ function KPIItem({
   );
 }
 
+const ERC20_ABI = [
+  {
+    name: 'totalSupply',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+] as const;
+
 export function KPIBar() {
   const chainId = useChainId();
   const chain = getChainById(chainId);
@@ -50,8 +61,39 @@ export function KPIBar() {
   const deployTone = registryHasCode === null ? 'neutral' : registryHasCode ? 'ok' : 'warn';
   const deployLabel = registryHasCode === null ? 'Unknown' : registryHasCode ? 'Deployed' : 'No bytecode';
 
-  // Mock analytics data (would come from on-chain monitoring service)
-  const totalValueSecured = "$4.2M";
+  // Read real TVL from NexusUSD on both chains
+  const baseNexusUSD = process.env.NEXT_PUBLIC_SUPERCHAIN_ERC20_BASE_SEPOLIA as `0x${string}` | undefined;
+  const opNexusUSD = process.env.NEXT_PUBLIC_SUPERCHAIN_ERC20_OP_SEPOLIA as `0x${string}` | undefined;
+
+  const { data: baseTVL } = useReadContract({
+    address: baseNexusUSD,
+    abi: ERC20_ABI,
+    functionName: 'totalSupply',
+    chainId: 84532, // Base Sepolia
+  });
+
+  const { data: opTVL } = useReadContract({
+    address: opNexusUSD,
+    abi: ERC20_ABI,
+    functionName: 'totalSupply',
+    chainId: 11155420, // OP Sepolia
+  });
+
+  // Calculate total TVL across both chains
+  const totalTVL = 
+    baseTVL && opTVL 
+      ? Number(formatUnits(baseTVL, 18)) + Number(formatUnits(opTVL, 18))
+      : baseTVL 
+        ? Number(formatUnits(baseTVL, 18))
+        : opTVL
+          ? Number(formatUnits(opTVL, 18))
+          : null;
+
+  const totalValueSecured = totalTVL !== null 
+    ? `$${totalTVL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : '—';
+
+  // TODO: Replace with real profit calculation from agent execution history
   const totalProfitGenerated = "+$12.5k";
 
   return (

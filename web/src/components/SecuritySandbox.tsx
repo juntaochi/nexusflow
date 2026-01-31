@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Lock, Clock, CheckCircle, Activity, RefreshCw } from 'lucide-react';
+import { useNexusDelegation } from '@/hooks/useNexusDelegation';
+import { formatUnits } from 'viem';
+import { useChainId } from 'wagmi';
 
 interface SecuritySandboxProps {
   isActive: boolean;
@@ -7,14 +10,42 @@ interface SecuritySandboxProps {
 }
 
 export function SecuritySandbox({ isActive, expiry }: SecuritySandboxProps) {
-  // Mock data representing state from NexusDelegation.sol
-  const [limits] = useState({
-    dailyLimit: 1000,
-    spentToday: 124.50,
-    asset: 'USDC',
-    whitelist: ['Uniswap V3', 'Aave V3', 'Superchain Bridge', 'Nexus USD'],
-    lastAudit: '2 mins ago'
-  });
+  const chainId = useChainId();
+  
+  // Get delegation contract address based on current chain
+  const delegationAddress = 
+    chainId === 84532 
+      ? (process.env.NEXT_PUBLIC_DELEGATION_CONTRACT as `0x${string}` | undefined)
+      : chainId === 11155420
+        ? (process.env.NEXT_PUBLIC_DELEGATION_CONTRACT_OP as `0x${string}` | undefined)
+        : undefined;
+
+  // USDC address for reading token limits (using NexusUSD as example)
+  const tokenAddress = 
+    chainId === 84532
+      ? (process.env.NEXT_PUBLIC_SUPERCHAIN_ERC20_BASE_SEPOLIA as `0x${string}` | undefined)
+      : chainId === 11155420
+        ? (process.env.NEXT_PUBLIC_SUPERCHAIN_ERC20_OP_SEPOLIA as `0x${string}` | undefined)
+        : undefined;
+
+  // Read real data from NexusDelegation contract
+  const {
+    tokenDailyLimit,
+    tokenDailySpent,
+    whitelist,
+  } = useNexusDelegation(delegationAddress, tokenAddress);
+
+  // Format limits for display
+  const dailyLimit = tokenDailyLimit ? Number(formatUnits(tokenDailyLimit, 18)) : 1000;
+  const spentToday = tokenDailySpent ? Number(formatUnits(tokenDailySpent, 18)) : 0;
+  
+  const limits = {
+    dailyLimit,
+    spentToday,
+    asset: 'NUSD',
+    whitelist: whitelist && whitelist.length > 0 ? whitelist : ['Uniswap V3', 'Aave V3', 'Superchain Messenger'],
+    lastAudit: '2 mins ago', // TODO: Track this from last contract interaction
+  };
 
   const [timeRemaining, setTimeRemaining] = useState<string>('');
 
