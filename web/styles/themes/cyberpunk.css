@@ -1,8 +1,18 @@
-[data-theme='cyberpunk'] {
-  --theme-primary: #00ffff;
-  --theme-secondary: #ff00ff;
-  --theme-bg: #0a0a0f;
-  --theme-surface: #1a1a2e;
-  --theme-text: #ffffff;
-  --theme-glow: 0 0 10px rgba(0, 255, 255, 0.5);
+@layer base {
+  [data-theme='cyberpunk'] {
+    --theme-primary: #00ffff;
+    --theme-secondary: #ff00ff;
+    --theme-bg: #0a0a0f;
+    --theme-surface: #1a1a2e;
+    --theme-text: #ffffff;
+    --theme-text-muted: #94a3b8;
+    --theme-border: rgba(255, 255, 255, 0.12);
+    --theme-glow: 0 0 10px rgba(0, 255, 255, 0.5);
+    --theme-radius: 24px;
+  }
+
+  [data-theme='cyberpunk'] body {
+    background-color: var(--theme-bg);
+    color: var(--theme-text);
+  }
 }

@@ -42,3 +42,10 @@ cache/
 broadcast/
 /doc
 AGENTS.md
+
+# Agents/AI
+.claude/
+.factory/
+.opencode/
+.sisyphus/
+.sisyphus

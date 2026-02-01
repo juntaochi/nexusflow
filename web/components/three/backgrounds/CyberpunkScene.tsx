@@ -4,12 +4,14 @@ import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Grid, Stars } from '@react-three/drei';
 import * as THREE from 'three';
+import { useAnimationThrottle } from '@/hooks/useAnimationThrottle';
 
 export function CyberpunkScene() {
   const gridRef = useRef<THREE.Group>(null);
+  const isAnimationDisabled = useAnimationThrottle();
 
   useFrame((state) => {
-    if (gridRef.current) {
+    if (gridRef.current && !isAnimationDisabled) {
       gridRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.1) * 0.1;
     }
   });

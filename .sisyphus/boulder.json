@@ -1,8 +1,9 @@
 {
-  "active_plan": "/Users/jac/aizen/worktrees/nexusflow/liyue/.sisyphus/plans/nexusflow-frontend.md",
-  "started_at": "2026-01-31T16:24:15.217Z",
+  "active_plan": "/Users/jac/aizen/worktrees/nexusflow/liyue/.sisyphus/plans/turbopack-performance-investigation.md",
+  "started_at": "2026-02-01T04:56:00.000Z",
   "session_ids": [
-    "ses_3eb38201dffeR123KnXPq7SP04"
+    "ses_3ea279844ffe9ZALq5OfIVQP4i",
+    "ses_3e9e538a2ffeTqHJPxLh33lo1B"
   ],
-  "plan_name": "nexusflow-frontend"
+  "plan_name": "turbopack-performance-investigation"
 }

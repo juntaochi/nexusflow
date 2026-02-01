@@ -2,10 +2,14 @@
 
 import dynamic from 'next/dynamic';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
-import { BackgroundManager } from '@/components/three/BackgroundManager';
 
 const Web3Provider = dynamic(
   () => import('@/components/providers/Web3Provider').then(mod => ({ default: mod.Web3Provider })),
+  { ssr: false }
+);
+
+const BackgroundManager = dynamic(
+  () => import('@/components/three/BackgroundManager').then(mod => ({ default: mod.BackgroundManager })),
   { ssr: false }
 );
 

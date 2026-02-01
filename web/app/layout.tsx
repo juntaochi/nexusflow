@@ -4,8 +4,7 @@ import '@/styles/themes/cyberpunk.css';
 import '@/styles/themes/glass.css';
 import '@/styles/themes/minimal.css';
 import { RootLayoutClient } from '@/components/layout/RootLayoutClient';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
+import { AppShell } from '@/components/layout/AppShell';
 
 export const metadata: Metadata = {
   title: 'NexusFlow - Trustless Agent Economy',
@@ -21,11 +20,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <RootLayoutClient>
-          <Header />
-          <main className="pt-24 min-h-[calc(100vh-80px)]">
+          <AppShell>
             {children}
-          </main>
-          <Footer />
+          </AppShell>
         </RootLayoutClient>
       </body>
     </html>

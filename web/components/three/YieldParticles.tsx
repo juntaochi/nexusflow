@@ -3,6 +3,7 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { useAnimationThrottle } from '@/hooks/useAnimationThrottle';
 
 interface YieldParticlesProps {
   count?: number;
@@ -11,6 +12,7 @@ interface YieldParticlesProps {
 
 export function YieldParticles({ count = 100, speed = 1 }: YieldParticlesProps) {
   const mesh = useRef<THREE.Points>(null);
+  const isAnimationDisabled = useAnimationThrottle();
   
   const particles = useMemo(() => {
     const temp = new Float32Array(count * 3);
@@ -23,7 +25,7 @@ export function YieldParticles({ count = 100, speed = 1 }: YieldParticlesProps) 
   }, [count]);
 
   useFrame((state) => {
-    if (!mesh.current) return;
+    if (!mesh.current || isAnimationDisabled) return;
     mesh.current.rotation.y += 0.002 * speed;
     mesh.current.rotation.x += 0.001 * speed;
     

@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 
-export type Theme = 'cyberpunk' | 'glass' | 'minimal';
+export type Theme = "cyberpunk" | "glass" | "minimal";
 
 interface ThemeState {
   theme: Theme;
@@ -9,7 +9,7 @@ interface ThemeState {
 }
 
 const getStorage = () => {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return {
       getItem: () => null,
       setItem: () => {},
@@ -22,12 +22,12 @@ const getStorage = () => {
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({
-      theme: 'cyberpunk',
+      theme: "cyberpunk",
       setTheme: (theme) => set({ theme }),
     }),
     {
-      name: 'theme-storage',
+      name: "theme-storage",
       storage: createJSONStorage(() => getStorage()),
-    }
-  )
+    },
+  ),
 );

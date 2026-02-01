@@ -4,12 +4,14 @@ import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Sphere, Line } from '@react-three/drei';
 import * as THREE from 'three';
+import { useAnimationThrottle } from '@/hooks/useAnimationThrottle';
 
 export function SuperchainGlobe() {
   const group = useRef<THREE.Group>(null);
+  const isAnimationDisabled = useAnimationThrottle();
 
   useFrame((state) => {
-    if (!group.current) return;
+    if (!group.current || isAnimationDisabled) return;
     group.current.rotation.y = state.clock.getElapsedTime() * 0.1;
   });
 

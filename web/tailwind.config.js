@@ -1,6 +1,5 @@
-import type { Config } from 'tailwindcss';
-
-const config: Config = {
+/** @type {import('tailwindcss').Config} */
+module.exports = {
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -8,6 +7,13 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        primary: 'var(--theme-primary)',
+        secondary: 'var(--theme-secondary)',
+        surface: 'var(--theme-surface)',
+        bg: 'var(--theme-bg)',
+        text: 'var(--theme-text)',
+        'text-muted': 'var(--theme-text-muted)',
+        border: 'var(--theme-border)',
         cyberpunk: {
           primary: 'var(--color-cyberpunk-primary)',
           secondary: 'var(--color-cyberpunk-secondary)',
@@ -41,5 +47,3 @@ const config: Config = {
   },
   plugins: [],
 };
-
-export default config;

@@ -5,7 +5,7 @@ import { SceneContainer } from '@/components/three/SceneContainer';
 import { YieldParticles } from '@/components/three/YieldParticles';
 import { useYield } from '@/hooks/useYield';
 import { useChainSwitch } from '@/hooks/useChainSwitch';
-import { motion } from 'framer-motion';
+import { TrendingUp, DollarSign, Activity, Zap } from 'lucide-react';
 
 export default function DashboardPage() {
   const { apy } = useYield();
@@ -19,66 +19,82 @@ export default function DashboardPage() {
         </SceneContainer>
       </div>
 
-      <div className="relative z-10 py-20 px-4 max-w-5xl mx-auto">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
-          <div>
-            <motion.h1 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="text-4xl font-black text-white tracking-tighter uppercase"
-            >
-              Yield Dashboard
-            </motion.h1>
-            <p className="text-gray-400 mt-1 font-medium">Real-time profit accrual on {currentChain}</p>
+      <div className="relative z-10 py-12 px-4 max-w-5xl mx-auto">
+        <section className="mb-12 p-8 rounded-3xl bg-gradient-to-b from-primary/10 to-transparent border border-white/10 backdrop-blur-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-sm font-medium text-green-400">Live Earnings</span>
+          </div>
+          <div className="text-5xl font-mono font-bold text-primary mb-2">
+            +$1,234.56
+          </div>
+          <p className="text-gray-400">Accruing every second from on-chain contracts</p>
+        </section>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+            <div className="flex items-center gap-2 text-gray-400 mb-2">
+              <TrendingUp className="w-4 h-4" />
+              <span className="text-xs font-bold uppercase">Current APY</span>
+            </div>
+            <div className="text-2xl font-mono font-bold text-white">
+              {apy.toFixed(2)}%
+            </div>
           </div>
 
-          <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-md">
-            <button
-              onClick={switchToBase}
-              className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-                isBase ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-300'
-              }`}
-            >
-              Base
-            </button>
-            <button
-              onClick={switchToOP}
-              className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-                !isBase ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-300'
-              }`}
-            >
-              Optimism
-            </button>
-          </div>
-        </header>
-
-        <div className="grid lg:grid-cols-3 gap-8 items-start">
-          <div className="lg:col-span-2">
-            <YieldDashboard />
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+            <div className="flex items-center gap-2 text-gray-400 mb-2">
+              <DollarSign className="w-4 h-4" />
+              <span className="text-xs font-bold uppercase">Deposited</span>
+            </div>
+            <div className="text-2xl font-mono font-bold text-white">
+              $12,450
+            </div>
           </div>
 
-          <aside className="space-y-6">
-            <div className="p-6 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl">
-              <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-primary" />
-                Network Stats
-              </h3>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">Utilization</span>
-                  <span className="text-white font-mono">84.2%</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">Global TVL</span>
-                  <span className="text-white font-mono">$12.4M</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">Active Agents</span>
-                  <span className="text-white font-mono">1,204</span>
-                </div>
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+            <div className="flex items-center gap-2 text-gray-400 mb-2">
+              <Activity className="w-4 h-4" />
+              <span className="text-xs font-bold uppercase">Network</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xl font-bold text-white">{currentChain}</span>
+              <div className="flex bg-black/20 p-1 rounded-lg">
+                 <button
+                  onClick={switchToBase}
+                  className={`w-6 h-6 rounded flex items-center justify-center transition-all ${isBase ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                  title="Switch to Base"
+                >
+                  B
+                </button>
+                <button
+                  onClick={switchToOP}
+                  className={`w-6 h-6 rounded flex items-center justify-center transition-all ${!isBase ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                  title="Switch to Optimism"
+                >
+                  O
+                </button>
               </div>
             </div>
+          </div>
 
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+            <div className="flex items-center gap-2 text-gray-400 mb-2">
+              <Zap className="w-4 h-4" />
+              <span className="text-xs font-bold uppercase">Strategies</span>
+            </div>
+            <div className="text-2xl font-mono font-bold text-white">
+              3
+            </div>
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+             <YieldDashboard />
+          </div>
+          
+           <aside className="space-y-6">
             <div className="p-6 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl relative overflow-hidden group cursor-pointer">
               <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
               <h3 className="text-white font-bold mb-2">Strategy Optimizer</h3>
