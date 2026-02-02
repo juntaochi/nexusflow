@@ -32,15 +32,15 @@ export function TransactionItem({ tx }: TransactionItemProps) {
     <motion.div 
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      className="p-4 rounded-xl border border-white/5 bg-white/5 flex items-center justify-between group hover:bg-white/10 transition-colors"
+      className="p-4 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface)] flex items-center justify-between group hover:bg-[var(--theme-sidebar-hover)] transition-colors"
     >
       <div className="flex items-center gap-4">
-        <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg">
+        <div className="w-10 h-10 rounded-full bg-[var(--theme-bg)] border border-[var(--theme-border)] flex items-center justify-center text-lg text-[var(--theme-text)]">
           {typeIcons[tx.type]}
         </div>
         <div>
-          <h4 className="text-sm font-bold text-white capitalize">{tx.type}</h4>
-          <p className="text-xs text-gray-500 font-medium">
+          <h4 className="text-sm font-bold text-[var(--theme-text)] capitalize">{tx.type}</h4>
+          <p className="text-xs text-[var(--theme-text-muted)] font-medium">
             {formatDistanceToNow(tx.timestamp)} ago • {isBase ? 'Base' : 'OP'}
           </p>
         </div>
@@ -49,7 +49,7 @@ export function TransactionItem({ tx }: TransactionItemProps) {
       <div className="flex items-center gap-6">
         {tx.amount && (
           <div className="text-right">
-            <p className="text-sm font-bold text-white">{tx.amount} USDC</p>
+            <p className="text-sm font-bold text-[var(--theme-text)]">{tx.amount} NUSD</p>
           </div>
         )}
         
@@ -61,7 +61,7 @@ export function TransactionItem({ tx }: TransactionItemProps) {
           href={explorerUrl} 
           target="_blank" 
           rel="noopener noreferrer"
-          className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-primary hover:border-primary/50 transition-all"
+          className="w-8 h-8 rounded-lg bg-[var(--theme-bg)] border border-[var(--theme-border)] flex items-center justify-center text-[var(--theme-text-muted)] hover:text-primary hover:border-primary/50 transition-all"
         >
           ↗
         </a>

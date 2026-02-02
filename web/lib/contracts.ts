@@ -16,12 +16,12 @@ export const CONTRACTS = {
   agentRegistry: {
     address: (process.env.NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS || '0x') as Address,
     chainId: CHAINS.BASE_SEPOLIA,
-  } as ContractConfig,
+  } as ContractConfig & { opSepolia: ContractConfig },
   
   nexusDelegation: {
     address: (process.env.NEXT_PUBLIC_NEXUS_DELEGATION_ADDRESS || '0x') as Address,
     chainId: CHAINS.BASE_SEPOLIA,
-  } as ContractConfig,
+  } as ContractConfig & { opSepolia: ContractConfig },
   
   aavePool: {
     baseSepolia: {
@@ -67,6 +67,17 @@ export const CONTRACTS = {
     } as ContractConfig,
   },
 } as const;
+
+// Patch in the OP Sepolia addresses dynamically to avoid breaking type inference above
+(CONTRACTS.agentRegistry as any).opSepolia = {
+  address: (process.env.NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS_OP || '0x') as Address,
+  chainId: CHAINS.OP_SEPOLIA,
+};
+
+(CONTRACTS.nexusDelegation as any).opSepolia = {
+  address: (process.env.NEXT_PUBLIC_DELEGATION_CONTRACT_OP || '0x') as Address,
+  chainId: CHAINS.OP_SEPOLIA,
+};
 
 export const RPC_URLS = {
   [CHAINS.BASE_SEPOLIA]: process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC || 'https://sepolia.base.org',

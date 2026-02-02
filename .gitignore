@@ -37,6 +37,11 @@ out/
 .next/
 coverage/
 
+# Web build/test artifacts
+web/test-results/
+web/playwright-report/
+web/tsconfig.tsbuildinfo
+
 # Foundry
 cache/
 broadcast/
@@ -48,4 +53,4 @@ AGENTS.md
 .factory/
 .opencode/
 .sisyphus/
-.sisyphus
+.brv

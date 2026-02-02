@@ -9,12 +9,14 @@ import {
   Shield, 
   History, 
   Bot,
+  Terminal,
   Activity,
   Zap
 } from 'lucide-react';
 
 const MENU_ITEMS = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Console', href: '/console', icon: Terminal },
   { name: 'Strategies', href: '/arbitrage', icon: ArrowLeftRight },
   { name: 'Delegation', href: '/delegation', icon: Shield },
   { name: 'History', href: '/history', icon: History },

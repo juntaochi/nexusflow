@@ -12,33 +12,22 @@
     --font-body: 'Inter', sans-serif;
     
     /* Default theme (cyberpunk) vars used across components */
-    --theme-primary: #00ffff;
-    --theme-secondary: #ff00ff;
-    --theme-bg: #0a0a0f;
+    --theme-primary: #FF0420;
+    --theme-secondary: #0052FF;
+    --theme-bg: #0F111A;
     --theme-surface: #1a1a2e;
     --theme-text: #ffffff;
     --theme-text-muted: #94a3b8;
     --theme-border: rgba(255, 255, 255, 0.12);
-    --theme-glow: 0 0 10px rgba(0, 255, 255, 0.5);
+    --theme-glow: 0 0 10px rgba(255, 4, 32, 0.5);
     --theme-radius: 24px;
+    --theme-button-text: #000000;
     
     --color-cyberpunk-primary: #00ff88;
     --color-cyberpunk-secondary: #ff006e;
     --color-cyberpunk-accent: #00d9ff;
     --color-cyberpunk-bg: #0a0e27;
     --color-cyberpunk-text: #e0e0e0;
-    
-    --color-glass-primary: #6366f1;
-    --color-glass-secondary: #8b5cf6;
-    --color-glass-accent: #ec4899;
-    --color-glass-bg: #f8fafc;
-    --color-glass-text: #1e293b;
-    
-    --color-minimal-primary: #000000;
-    --color-minimal-secondary: #ffffff;
-    --color-minimal-accent: #666666;
-    --color-minimal-bg: #ffffff;
-    --color-minimal-text: #000000;
   }
 
   *,

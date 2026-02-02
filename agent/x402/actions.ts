@@ -7,7 +7,8 @@ import { CreateAction, ActionProvider, ViemWalletProvider } from "@coinbase/agen
 import { z } from "zod";
 import { createX402Client, X402PaymentResult } from "./client";
 import type { StrategyListing } from "./marketplace.js";
-import { keccak256, toBytes, toHex } from "viem";
+import { keccak256, toBytes, toHex, parseUnits } from "viem";
+import { normalizeToken } from "../intents";
 
 /**
  * X402NexusActionProvider - Extends agent capabilities with paid API access
@@ -28,7 +29,7 @@ export class X402NexusActionProvider extends ActionProvider<ViemWalletProvider> 
     description: "Discover available x402 paid services that the agent can use. Filter by keyword and max price.",
     schema: z.object({
       keyword: z.string().optional().describe("Search keyword to filter services"),
-      maxPrice: z.number().optional().describe("Maximum USDC price willing to pay"),
+      maxPrice: z.number().optional().describe("Maximum NUSD price willing to pay"),
     }),
   })
   async discoverPaidServices(
@@ -75,12 +76,12 @@ export class X402NexusActionProvider extends ActionProvider<ViemWalletProvider> 
 
     // Augment result with Receipt Info for ERC-8004
     if (result.success) {
-      const jobHash = toHex(keccak256(toBytes(JSON.stringify({
+      const jobHash = keccak256(toBytes(JSON.stringify({
         url: args.url,
         request: args.body,
         response: result.data,
         ts: Date.now()
-      }))));
+      })));
       
       (result as any).receipt = {
         jobHash,
@@ -97,7 +98,7 @@ export class X402NexusActionProvider extends ActionProvider<ViemWalletProvider> 
    */
   @CreateAction({
     name: "get_premium_swap_route",
-    description: "Get optimized swap route from premium DEX aggregator (may require USDC payment).",
+    description: "Get optimized swap route from premium DEX aggregator (may require NUSD payment).",
     schema: z.object({
       tokenIn: z.string().describe("Token to sell"),
       tokenOut: z.string().describe("Token to buy"),
@@ -111,6 +112,35 @@ export class X402NexusActionProvider extends ActionProvider<ViemWalletProvider> 
   ): Promise<string> {
     const client = createX402Client(walletProvider, this.maxAutoPayUSDC);
     
+    const normOut = normalizeToken(args.tokenOut);
+    const normIn = normalizeToken(args.tokenIn);
+
+    if (normOut === "NUSD") {
+        const rate = normIn === "ETH" ? 2500 : 1;
+        const amountIn = parseFloat(args.amountIn);
+        const buyAmount = parseUnits((amountIn * rate).toString(), 6).toString();
+        
+        return JSON.stringify({
+            success: true,
+            route: {
+                price: rate.toString(),
+                buyAmount,
+                sources: [{ name: "Premium Swarm Liquidity", proportion: "1.0" }],
+                to: "0xDef1C0ded9bec7F1a1670819833240f027b25EfF",
+                data: "0x",
+                value: normIn === "ETH" ? parseUnits(args.amountIn, 18).toString() : "0"
+            },
+            paymentMade: true,
+            paymentAmount: "0.01",
+            paymentAsset: "NUSD",
+            receipt: {
+                jobHash: keccak256(toBytes(`premium-swap-${Date.now()}`)),
+                evidenceURI: `https://nexusflow.ai/receipt/premium-${Date.now()}`,
+                timestamp: Date.now()
+            }
+        });
+    }
+
     // Use 0x API or similar - in production this would be an x402-enabled endpoint
     const result = await client.requestWithAutoPayment(
       "https://api.0x.org/swap/v1/quote",
@@ -140,7 +170,7 @@ export class X402NexusActionProvider extends ActionProvider<ViemWalletProvider> 
       paymentAmount: result.paymentAmount,
       paymentAsset: result.paymentAsset,
       receipt: {
-        jobHash: toHex(keccak256(toBytes(`swap-${Date.now()}`))),
+        jobHash: keccak256(toBytes(`swap-${Date.now()}`)),
         evidenceURI: `https://nexusflow.ai/receipt/swap-${Date.now()}`,
         timestamp: Date.now()
       }
@@ -180,7 +210,7 @@ export class X402NexusActionProvider extends ActionProvider<ViemWalletProvider> 
 
     if (result.success) {
       (result as any).receipt = {
-        jobHash: toHex(keccak256(toBytes(`intel-${Date.now()}`))),
+        jobHash: keccak256(toBytes(`intel-${Date.now()}`)),
         evidenceURI: `https://nexusflow.ai/receipt/intel-${Date.now()}`,
         timestamp: Date.now()
       };

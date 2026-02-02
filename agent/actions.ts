@@ -2,7 +2,7 @@ import { ActionProvider, CreateAction, ViemWalletProvider } from "@coinbase/agen
 import { z } from "zod";
 import { encodeFunctionData, Hex, Address } from "viem";
 import { parseIntent, formatIntentPreview, ParserConfig } from "./parser";
-import { IntentType, getTokenAddress, SwapIntent, BridgeIntent, BASE_TOKENS } from "./intents";
+import { IntentType, getTokenAddress, SwapIntent, BridgeIntent, BASE_TOKENS, normalizeToken } from "./intents";
 import type { ArbitrageOpportunity } from "./executor/arbitrage.js";
 import { getSwapQuote, formatSwapQuote } from "./resolvers/swap";
 import { buildBridgeCalldata, formatBridgePreview, isBridgeSupported } from "./resolvers/bridge";
@@ -59,12 +59,67 @@ export class NexusActionProvider extends ActionProvider<ViemWalletProvider> {
       args: [args.target as Hex, args.data as Hex],
     });
 
+    const userAddress = process.env.USER_EOA_ADDRESS || "0x5D26552Fe617460250e68e737F2A60eA6402eEA9";
+
     return JSON.stringify({
-      to: "YOUR_EOA_ADDRESS_UPGRADED_VIA_7702",
+      to: userAddress,
       data: calldata,
       value: args.value || "0",
       description: `Executing intent at ${args.target} via NexusFlow delegation.`,
     });
+  }
+
+  @CreateAction({
+    name: "broadcast_prepared_intent",
+    description: "Actually broadcasts a prepared intent to the network using the agent's authorized Session Key.",
+    schema: z.object({
+      target: z.string().describe("The target contract address for the intent"),
+      data: z.string().describe("The hex-encoded calldata for the intent"),
+      value: z.string().optional().describe("Amount of ETH to send in wei"),
+      userAddress: z.string().describe("The user's EOA address that has delegated to this agent"),
+    }),
+  })
+  async broadcastPreparedIntent(
+    walletProvider: ViemWalletProvider,
+    args: { target: string; data: string; userAddress: string; value?: string }
+  ) {
+    const NEXUS_DELEGATION_ABI = [
+      {
+        name: "executeIntent",
+        type: "function",
+        stateMutability: "payable",
+        inputs: [
+          { name: "_target", type: "address" },
+          { name: "_data", type: "bytes" },
+        ],
+        outputs: [],
+      },
+    ];
+
+    const calldata = encodeFunctionData({
+      abi: NEXUS_DELEGATION_ABI,
+      functionName: "executeIntent",
+      args: [args.target as Hex, args.data as Hex],
+    });
+
+    try {
+      const hash = await walletProvider.sendTransaction({
+        to: args.userAddress as Address,
+        data: calldata,
+        value: args.value ? BigInt(args.value) : 0n,
+      });
+
+      return JSON.stringify({
+        success: true,
+        txHash: hash,
+        message: `Successfully broadcasted intent execution to ${args.userAddress}.`,
+      });
+    } catch (error: any) {
+      return JSON.stringify({
+        success: false,
+        error: error.message || "Failed to broadcast transaction",
+      });
+    }
   }
 
   /**
@@ -203,18 +258,21 @@ export class NexusActionProvider extends ActionProvider<ViemWalletProvider> {
       });
     }
 
-    const tokenAddress = getTokenAddress(bridgeIntent.token);
-    if (!tokenAddress) {
+    const sourceTokenAddress = getTokenAddress(bridgeIntent.token, bridgeIntent.fromChain);
+    const destTokenAddress = getTokenAddress(bridgeIntent.token, bridgeIntent.toChain);
+
+    if (!sourceTokenAddress || !destTokenAddress) {
       return JSON.stringify({
         success: false,
-        error: `Unknown token: ${bridgeIntent.token}`,
+        error: `Token ${bridgeIntent.token} address not found for ${!sourceTokenAddress ? bridgeIntent.fromChain : bridgeIntent.toChain}`,
       });
     }
 
     const result = buildBridgeCalldata(
       bridgeIntent,
       args.userAddress as Address,
-      tokenAddress
+      sourceTokenAddress,
+      destTokenAddress
     );
 
     if (!result.success) {
@@ -232,7 +290,7 @@ export class NexusActionProvider extends ActionProvider<ViemWalletProvider> {
       steps: [
         {
           name: "Burn on source chain",
-          target: tokenAddress,
+          target: sourceTokenAddress,
           data: result.burnCalldata,
         },
         {

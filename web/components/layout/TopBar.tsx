@@ -1,6 +1,5 @@
 'use client';
 
-import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { ConnectButton } from '@/components/wallet/ConnectButton';
 import { Menu } from 'lucide-react';
 
@@ -20,8 +19,6 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         </button>
         
         <div className="flex items-center gap-4 ml-auto">
-          <ThemeSwitcher />
-          <div className="h-6 w-[1px] bg-white/10" />
           <ConnectButton />
         </div>
       </div>

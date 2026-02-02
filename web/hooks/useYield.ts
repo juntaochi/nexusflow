@@ -55,6 +55,7 @@ export function useYield() {
   return {
     balance: balance ? BigInt(balance as string) : 0n,
     principal: depositInfo ? BigInt((depositInfo as any).principal) : 0n,
+    lastUpdateTime: depositInfo ? Number((depositInfo as any).lastUpdateTime) : 0,
     apy,
     isLoading: !balance && !!address,
     asset,

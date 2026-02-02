@@ -75,29 +75,24 @@ export type BridgeIntent = z.infer<typeof BridgeIntentSchema>;
 export type UnknownIntent = z.infer<typeof UnknownIntentSchema>;
 export type ParsedIntent = z.infer<typeof ParsedIntentSchema>;
 
-export const TOKEN_ADDRESSES: Record<string, Record<string, `0x${string}`>> = {
-  base: {
-    ETH: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-    WETH: "0x4200000000000000000000000000000000000006",
-    NUSD: "0x1A54562813c35151a5e8cF4105221212ad97Bf52",
-  },
-  optimism: {
-    ETH: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-    WETH: "0x4200000000000000000000000000000000000006",
-    NUSD: "0x1A54562813c35151a5e8cF4105221212ad97Bf52",
-  },
-  "base-sepolia": {
-    ETH: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-    WETH: "0x4200000000000000000000000000000000000006",
-    NUSD: "0x1A54562813c35151a5e8cF4105221212ad97Bf52",
-  },
-  "op-sepolia": {
-    ETH: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-    WETH: "0x4200000000000000000000000000000000000006",
-    NUSD: "0xaA6B7D1b89B05BEABD2F23baf0110806082D09a5",
-  },
+/**
+ * Token address mapping for Base chain
+ */
+export const BASE_TOKENS: Record<string, `0x${string}`> = {
+  ETH: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  WETH: "0x4200000000000000000000000000000000000006",
+  USDC: "0x1A54562813c35151a5e8cF4105221212ad97Bf52",
+  USDT: "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+  DAI: "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
+  WBTC: "0x0555E30da8f98308EdB960aa94C0Db47230d2B9c",
+  NUSD: "0x1A54562813c35151a5e8cF4105221212ad97Bf52",
+  NEXUSUSD: "0x1A54562813c35151a5e8cF4105221212ad97Bf52",
+  "USD COIN": "0x1A54562813c35151a5e8cF4105221212ad97Bf52",
 };
 
+/**
+ * Normalize token symbol to uppercase
+ */
 export function normalizeToken(token: string): string {
   const upper = token.toUpperCase().trim();
   if (upper === "ETHEREUM" || upper === "ETHER") return "ETH";
@@ -109,20 +104,12 @@ export function normalizeToken(token: string): string {
   return upper;
 }
 
-export function getTokenAddress(symbol: string, chain: string = "base-sepolia"): `0x${string}` | undefined {
-  const normToken = normalizeToken(symbol);
-  const normChain = chain.toLowerCase().replace(/[^a-z0-9]/g, "");
-  
-  let chainKey = "base-sepolia";
-  if (normChain.includes("base") && normChain.includes("sepolia")) chainKey = "base-sepolia";
-  else if ((normChain.includes("op") || normChain.includes("optimism")) && normChain.includes("sepolia")) chainKey = "op-sepolia";
-  else if (normChain.includes("base")) chainKey = "base-sepolia";
-  else if (normChain.includes("optimism") || normChain.includes("op")) chainKey = "op-sepolia";
-
-  return TOKEN_ADDRESSES[chainKey]?.[normToken];
+/**
+ * Get token address from symbol
+ */
+export function getTokenAddress(symbol: string): `0x${string}` | undefined {
+  return BASE_TOKENS[normalizeToken(symbol)];
 }
-
-export const BASE_TOKENS = TOKEN_ADDRESSES["base-sepolia"];
 
 /**
  * Validate that a parsed intent has required token addresses

@@ -10,12 +10,16 @@
     "dev:turbo-nocache": "NEXT_TURBOPACK_DISABLE_FS_CACHE=1 next dev --turbo",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "test": "playwright test"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@langchain/core": "^1.1.18",
+    "@langchain/openai": "^1.2.4",
+    "@metamask/sdk": "^0.33.1",
     "@rainbow-me/rainbowkit": "^2.2.10",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
@@ -47,6 +51,8 @@
     }
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.1"
+    "@playwright/test": "^1.58.1",
+    "eslint": "^9.20.0",
+    "eslint-config-next": "16.1.6"
   }
 }

@@ -1,8 +1,6 @@
 import type { Metadata } from 'next';
 import '@/styles/globals.css';
 import '@/styles/themes/cyberpunk.css';
-import '@/styles/themes/glass.css';
-import '@/styles/themes/minimal.css';
 import { RootLayoutClient } from '@/components/layout/RootLayoutClient';
 import { AppShell } from '@/components/layout/AppShell';
 

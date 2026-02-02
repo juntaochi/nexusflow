@@ -13,18 +13,27 @@ import { MemorySaver } from "@langchain/langgraph";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import * as readline from "readline";
 
-dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env"), override: true });
+
+const parentEnvPath = path.resolve(process.cwd(), "..", ".env");
 dotenv.config({
-  path: path.resolve(process.cwd(), "..", ".env"),
-  override: false,
+  path: parentEnvPath,
+  override: true,
 });
+
+const rootEnvPath = path.resolve(__dirname, "..", ".env"); 
+dotenv.config({ path: rootEnvPath, override: true });
 
 type MessageWithContent = { content?: unknown };
 
 const getFirstMessageContent = (messages: unknown): string | undefined => {
   if (Array.isArray(messages)) {
-    const first = messages[0] as MessageWithContent | undefined;
-    return typeof first?.content === "string" ? first.content : undefined;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i] as MessageWithContent | undefined;
+      if (typeof msg?.content === "string" && msg.content.trim().length > 0) {
+        return msg.content;
+      }
+    }
   }
 
   if (messages && typeof messages === "object" && "content" in messages) {
@@ -70,7 +79,7 @@ export async function initializeAgent() {
   const tools = await getLangChainTools(agentKit);
   const memory = new MemorySaver();
   const llm = new ChatOpenAI({
-    modelName: "gpt-4o-mini",
+    modelName: "gpt-5-nano-2025-08-07",
   });
 
   const agent = createReactAgent({
@@ -108,6 +117,7 @@ async function runCLI() {
       }
 
       try {
+        process.stdout.write("[Agent]: Thinking...");
         const stream = await agent.stream(
           { messages: [{ role: "user", content: input }] },
           config
@@ -118,13 +128,13 @@ async function runCLI() {
             const agentMessages = (chunk as { agent?: { messages?: unknown } }).agent?.messages;
             const content = getFirstMessageContent(agentMessages);
             if (content) {
-              console.log("\n[Agent]:", content);
+              process.stdout.write(`\r[Agent]: ${content}\n`);
             }
           } else if ("tools" in chunk) {
             const toolMessages = (chunk as { tools?: { messages?: unknown } }).tools?.messages;
             const content = getFirstMessageContent(toolMessages);
             if (content) {
-              console.log("\n[Tool Call]:", content);
+              console.log("[Tool Call Result]:", content.length > 100 ? content.slice(0, 100) + "..." : content);
             }
           }
         }

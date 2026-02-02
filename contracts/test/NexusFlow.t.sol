@@ -60,6 +60,7 @@ contract NexusFlowTest is Test {
         
         vm.prank(user);
         nexus.setTokenDailyLimit(token, limit);
+        vm.prank(user);
         nexus.authorizeSessionKey(agent, true);
         
         // Mock token transfer call: transfer(address,uint256)

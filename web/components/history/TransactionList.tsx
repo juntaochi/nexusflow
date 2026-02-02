@@ -9,12 +9,12 @@ export function TransactionList() {
 
   if (transactions.length === 0) {
     return (
-      <div className="p-12 rounded-2xl border border-white/5 bg-white/5 flex flex-col items-center justify-center text-center">
-        <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center text-2xl mb-4 text-gray-600">
+      <div className="p-12 rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] flex flex-col items-center justify-center text-center">
+        <div className="w-16 h-16 rounded-full bg-[var(--theme-bg)] border border-[var(--theme-border)] flex items-center justify-center text-2xl mb-4 text-[var(--theme-text-muted)]">
           ∅
         </div>
-        <h3 className="text-white font-bold mb-1">No Transactions Found</h3>
-        <p className="text-gray-500 text-sm">Your local transaction history is currently empty.</p>
+        <h3 className="text-[var(--theme-text)] font-bold mb-1">No Transactions Found</h3>
+        <p className="text-[var(--theme-text-muted)] text-sm">Your local transaction history is currently empty.</p>
       </div>
     );
   }
@@ -22,13 +22,13 @@ export function TransactionList() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-white/80 flex items-center gap-2">
+        <h3 className="text-lg font-bold text-[var(--theme-text)] flex items-center gap-2 opacity-80">
           <span className="w-2 h-2 rounded-full bg-primary" />
           Recent Activity
         </h3>
         <button 
           onClick={clearHistory}
-          className="text-xs font-bold text-gray-500 hover:text-red-400 uppercase tracking-widest transition-colors"
+          className="text-xs font-bold text-[var(--theme-text-muted)] hover:text-red-400 uppercase tracking-widest transition-colors"
         >
           Clear History
         </button>

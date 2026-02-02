@@ -1,18 +1,18 @@
 import { encodeFunctionData, type Hex, type Address } from "viem";
 import { BridgeIntent, BASE_TOKENS } from "../intents";
 
-// Chain IDs for Superchain
-export const CHAIN_IDS = {
+export const CHAIN_IDS: Record<string, number> = {
   base: 8453,
   optimism: 10,
-  baseSepolia: 84532,
-  opSepolia: 11155420,
+  "base-sepolia": 84532,
+  "op-sepolia": 11155420,
+  basesepolia: 84532,
+  opsepolia: 11155420,
+  optimismsepolia: 11155420,
 } as const;
 
-// L2ToL2CrossDomainMessenger address (same on all OP Stack chains)
 export const L2_TO_L2_MESSENGER = "0x4200000000000000000000000000000000000023" as const;
 
-// SuperchainERC20 bridge interface
 const SUPERCHAIN_ERC20_ABI = [
   {
     name: "crosschainBurn",
@@ -36,7 +36,6 @@ const SUPERCHAIN_ERC20_ABI = [
   },
 ] as const;
 
-// L2ToL2CrossDomainMessenger interface
 const L2_MESSENGER_ABI = [
   {
     name: "sendMessage",
@@ -56,52 +55,47 @@ export interface BridgeResult {
   burnCalldata?: Hex;
   messageCalldata?: Hex;
   destinationChainId?: number;
+  sourceTokenAddress?: Address;
+  destTokenAddress?: Address;
   error?: string;
 }
 
-/**
- * Get chain ID from name
- */
 function getChainId(chainName: string): number {
-  const normalized = chainName.toLowerCase().replace(/[^a-z]/g, "");
-  const chainId = CHAIN_IDS[normalized as keyof typeof CHAIN_IDS];
-  if (!chainId) {
-    throw new Error(`Unknown chain: ${chainName}`);
-  }
-  return chainId;
+  const normalized = chainName.toLowerCase().trim();
+  if (CHAIN_IDS[normalized]) return CHAIN_IDS[normalized];
+  const alphanumeric = normalized.replace(/[^a-z0-9]/g, "");
+  if (CHAIN_IDS[alphanumeric]) return CHAIN_IDS[alphanumeric];
+  if (normalized.includes("base") && normalized.includes("sepolia")) return 84532;
+  if ((normalized.includes("op") || normalized.includes("optimism")) && normalized.includes("sepolia")) return 11155420;
+  throw new Error(`Unknown chain: ${chainName}`);
 }
 
-/**
- * Build bridge calldata for SuperchainERC20
- */
 export function buildBridgeCalldata(
   intent: BridgeIntent,
   userAddress: Address,
-  tokenAddress: Address
+  sourceTokenAddress: Address,
+  destTokenAddress: Address
 ): BridgeResult {
   try {
     const destinationChainId = getChainId(intent.toChain);
-    const amount = BigInt(parseFloat(intent.amount) * 1e18); // Simplified decimals
+    const amount = BigInt(parseFloat(intent.amount) * 1e18);
 
-    // Step 1: Burn tokens on source chain
     const burnCalldata = encodeFunctionData({
       abi: SUPERCHAIN_ERC20_ABI,
       functionName: "crosschainBurn",
       args: [userAddress, amount],
     });
 
-    // Step 2: Prepare mint message for destination chain
     const mintCalldata = encodeFunctionData({
       abi: SUPERCHAIN_ERC20_ABI,
       functionName: "crosschainMint",
       args: [userAddress, amount],
     });
 
-    // Step 3: Send cross-chain message via L2ToL2CrossDomainMessenger
     const messageCalldata = encodeFunctionData({
       abi: L2_MESSENGER_ABI,
       functionName: "sendMessage",
-      args: [BigInt(destinationChainId), tokenAddress, mintCalldata],
+      args: [BigInt(destinationChainId), destTokenAddress, mintCalldata],
     });
 
     return {
@@ -109,6 +103,8 @@ export function buildBridgeCalldata(
       burnCalldata,
       messageCalldata,
       destinationChainId,
+      sourceTokenAddress,
+      destTokenAddress,
     };
   } catch (error) {
     return {
@@ -118,16 +114,10 @@ export function buildBridgeCalldata(
   }
 }
 
-/**
- * Format bridge operation for display
- */
 export function formatBridgePreview(intent: BridgeIntent): string {
   return `Bridge ${intent.amount} ${intent.token} from ${intent.fromChain} → ${intent.toChain}`;
 }
 
-/**
- * Check if bridge is supported between chains
- */
 export function isBridgeSupported(fromChain: string, toChain: string): boolean {
   try {
     getChainId(fromChain);

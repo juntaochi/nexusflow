@@ -16,7 +16,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <>
         <Header />
-        <main className="pt-24 min-h-[calc(100vh-80px)]">
+        <main className="pt-24 min-h-[calc(100vh-80px)] relative z-10">
           {children}
         </main>
         <Footer />
@@ -30,7 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       
       <div className="md:ml-64 min-h-screen flex flex-col">
         <TopBar onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="flex-1 pt-6 pb-8 px-6">
+        <main className="flex-1 pt-6 pb-8 px-6 relative z-10">
           {children}
         </main>
       </div>

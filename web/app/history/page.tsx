@@ -11,7 +11,7 @@ export default function HistoryPage() {
           <motion.h1 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-4xl font-black text-white tracking-tighter uppercase"
+            className="text-4xl font-black text-[var(--theme-text)] tracking-tighter uppercase"
           >
             Transaction History
           </motion.h1>
@@ -19,7 +19,7 @@ export default function HistoryPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-gray-400 mt-2 font-medium"
+            className="text-[var(--theme-text-muted)] mt-2 font-medium"
           >
             Your private, client-side activity record stored in localStorage.
           </motion.p>
@@ -34,7 +34,7 @@ export default function HistoryPage() {
         </div>
 
         <footer className="mt-16 text-center">
-          <p className="text-xs text-gray-600 leading-relaxed max-w-sm mx-auto">
+          <p className="text-xs text-[var(--theme-text-muted)] leading-relaxed max-w-sm mx-auto">
             This history is only stored on your device. Clearing your browser cache 
             or using a different device will reset this list.
           </p>

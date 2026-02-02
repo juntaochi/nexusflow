@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-export type Theme = "cyberpunk" | "glass" | "minimal";
+export type Theme = "cyberpunk";
 
 interface ThemeState {
   theme: Theme;

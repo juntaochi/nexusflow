@@ -1,142 +1,96 @@
-# NexusFlow: Trustless Agentic Economy for the Superchain
+# NexusFlow
 
-> **EIP-7702 + Superchain Interop + x402 + World ID** = The Future of Autonomous, Trustless Agent Economy
+<div align="center">
 
-NexusFlow is a **Serverless & Trustless** platform enabling AI agents to autonomously manage user funds across the Optimism Superchain with ironclad security, on-chain reputation, and economic sustainability.
+![NexusFlow Banner](https://via.placeholder.com/1200x300?text=NexusFlow+Infrastructure)
 
-It is designed for the **2026 Ethereum x Optimism Hackathon**, showcasing a serverless architecture where all state—including reputation, transaction history, and yield data—lives entirely on-chain or in local client storage. No backend database required.
+**The Trust & Coordination Layer for the Autonomous Agent Economy**
 
----
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Network: Superchain](https://img.shields.io/badge/Network-Optimism%20Superchain-red)](https://optimism.io)
+[![Standard: ERC-8004](https://img.shields.io/badge/Standard-ERC--8004-blue)](https://eips.ethereum.org)
+[![Status: Production Alpha](https://img.shields.io/badge/Status-Production%20Alpha-success)](https://nexusflow.network)
 
-## 🎯 What We Built
+[Documentation](https://docs.nexusflow.network) · [Live Demo](https://nexusflow.vercel.app) · [Report Bug](https://github.com/nexusflow/core/issues)
 
-### Track A: Autonomous Arbitrage (Serverless)
-**Problem**: Liquidity is fragmented. Users manually chase yield.
-**Solution**: AI agent monitors on-chain yield rates directly from Smart Contracts (Aave/Compound V2 Mocks) and executes rebalancing via Superchain Interop.
-**Tech**: V2 Mocks with on-chain interest accrual + Client-side logic.
-
-### Track B: x402 Strategy Marketplace
-**Problem**: AI agents lack revenue models.
-**Solution**: Agents offer premium strategies as x402-protected APIs, earning USDC.
-**Tech**: x402 Protocol for "Payment for Intelligence".
-
-### Track C: Trustless Identity
-**Problem**: How do you trust an AI?
-**Solution**: World ID verifies human ownership; ERC-8004 Registry tracks reputation on-chain.
+</div>
 
 ---
 
-## 🏗️ Architecture (Serverless Edition)
+## 🌐 The Mission
 
-```
-┌─────────────────┐
-│   World ID      │ ← Sybil-resistant human verification
-│   Verification  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│  AgentRegistry  │◄──│  EIP-7702       │──►│  Client-Side    │
-│  (ERC-8004)     │   │  Delegation     │   │  History (Local)│
-└────────┬────────┘   └────────┬────────┘   └────────┬────────┘
-         │                     │                     │
-         └─────────────────────┴─────────────────────┘
-                              │
-                              ▼
-                    ┌─────────────────┐
-                    │   Smart Contract│
-                    │   Yield Mocks   │
-                    │  (Interest V2)  │
-                    └─────────────────┘
-```
+As AI agents transition from passive chatbots to active economic actors, they face a critical **"Trust Gap"**:
+1.  **Identity**: How do we verify an agent's code and owner?
+2.  **Security**: How do we grant agents permission to spend funds without risking total wallet compromise?
+3.  **Revenue**: How do agent builders monetize their intelligence trustlessly?
 
-**Key Shift**: We removed the backend PostgreSQL requirement.
-- **Profit Calculation**: Derived live from on-chain `balanceOf` vs `principal` reads.
-- **Transaction History**: Persisted in browser `localStorage` for privacy and zero-infra deployment.
-- **Yield Data**: Real-time on-chain accrual (`block.timestamp` based logic).
+**NexusFlow** is the decentralized infrastructure layer solving these problems. Built on the **Optimism Superchain**, we leverage **ERC-8004 (Agent Registry)** and **EIP-7702 (Session Keys)** to enable a secure, interoperable, and profitable economy for autonomous agents.
 
 ---
 
-## 🚀 Quick Start
+## 🏗️ Core Infrastructure
 
-### Prerequisites
-- Node.js 18+
-- Foundry
-- Recommended: Base Sepolia & OP Sepolia testnet ETH
+NexusFlow is not just a DApp; it is a suite of protocols designed for the next generation of DeFi.
 
-### 1. Setup Environment Variables
+### 1. Nexus Registry (ERC-8004 Implementation)
+*The "DNS" for AI Agents.*
+- **Verifiable Identity**: Agents are minted as **ERC-721** NFTs, binding their code hash and endpoint to a permanent on-chain ID.
+- **Proof of Human**: Integrates **World ID** to prevent bot spam and ensure accountability for agent operators.
+- **Reputation Layer**: An immutable ledger of "Execution Receipts" allows users to audit an agent's historical performance (ROI, uptime) before delegating funds.
 
-**Web Frontend** (`web/.env.local`):
-```bash
-NEXT_PUBLIC_WORLD_APP_ID=app_...
-NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS=0x...
-NEXT_PUBLIC_AAVE_POOL_BASE_SEPOLIA=0x... # V2 Mock with interest
-NEXT_PUBLIC_AAVE_POOL_OP_SEPOLIA=0x...   # V2 Mock with interest
-```
+### 2. Secure Delegation Engine (EIP-7702)
+*Bank-grade security for autonomous actors.*
+- **Granular Permissions**: Users sign EIP-7702 authorizations that limit agents to specific:
+    - **Contracts** (e.g., "Only interact with Uniswap & Aave")
+    - **Functions** (e.g., "Only `swap` and `supply`")
+    - **Budgets** (e.g., "Max spend: 100 USDC per day")
+- **Non-Custodial**: Users verify the agent's logic but maintain full custody of their assets until execution time.
 
-### 2. Run the Dapp (Frontend Only)
-
-Since the architecture is serverless, you only need to run the frontend!
-
-```bash
-cd web
-npm install
-npm run dev
-```
-
-Visit `http://localhost:3000`
+### 3. Nexus Execute (Superchain Interop)
+*One-Click Cross-Chain Orchestration.*
+- **Atomic Arbitrage**: Agents utilize the OP Superchain's native interoperability to execute complex cross-chain strategies (e.g., "Borrow on Base, Lend on OP Mainnet") in a single transaction flow.
+- **x402 Monetization**: A "Pay-for-Intelligence" protocol allowing strategy developers to wrap their algorithms in a smart contract that automatically deducts performance fees.
 
 ---
 
-## 📖 User Flow
+## 🚀 Ecosystem Value
 
-### Act 1: Identity & Delegation
-1. Connect Wallet.
-2. Verify via World ID (Sybil resistance).
-3. Sign EIP-7702 Delegation to authorize the Agent.
+Why NexusFlow matters for the Superchain Ecosystem:
 
-### Act 2: Real-Time Earnings
-1. Deposit funds into the **Security Sandbox**.
-2. Watch "Real Profit" tick up every second.
-   - *Under the hood*: The frontend reads the V2 Smart Contract, which calculates `principal * rate * (now - depositTime)`.
-3. No fake numbers. If the blockchain stops, the profit stops.
-
-### Act 3: Autonomous Execution
-1. The Agent monitors yield spread between Base and OP.
-2. Triggers rebalance transaction when profitable.
-3. **Transaction History** is saved locally to your device, preserving privacy.
+| For Users | For Developers | For Chains |
+|-----------|----------------|------------|
+| **Passive Yield**: Delegate funds to high-reputation agents with zero setup. | **Monetization**: Earn on-chain revenue from your trading bots/strategies. | **Transaction Volume**: AI Agents operate 24/7, driving consistent blockspace demand. |
+| **Safety**: EIP-7702 ensures agents can't drain your wallet. | **Standardization**: ERC-8004 provides a unified interface for agent discovery. | **Liquidity**: Automated rebalancing improves market efficiency across the Superchain. |
 
 ---
 
-## 🛠️ Tech Stack
+## 🗺️ Roadmap (2026)
 
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| **Contracts** | Solidity + Foundry | EIP-7702 Delegation, SuperchainERC20, V2 Interest Mocks |
-| **Frontend** | Next.js + Wagmi | Direct RPC reads, LocalStorage persistence, UI |
-| **Identity** | World ID | Human verification |
-| **Data** | On-Chain + Local | Zero-backend architecture |
+### Q1: Foundation & Alpha (Completed)
+- [x] **ERC-8004 Registry Contract**: Deployment on Base Sepolia & OP Sepolia.
+- [x] **EIP-7702 Integration**: Functional delegation module for session keys.
+- [x] **MVP Dashboard**: Interface for agent discovery and portfolio tracking.
 
----
+### Q2: Security & Audit (Current Focus)
+- [ ] **Infrastructure Hardening**: Transitioning from Alpha to Production-grade RPC infrastructure.
+- [ ] **Security Audits**: Comprehensive audit of the Registry and Delegation contracts.
+- [ ] **Validator Network**: Onboarding 3rd-party validators (e.g., TEE providers) to attest to agent code integrity.
 
-## 🎓 Key Innovations
-
-### 1. Serverless "Trustless" Architecture
-By removing the backend database, we ensure that **all data displayed comes directly from the chain** or the user's own device. This aligns perfectly with crypto values of self-sovereignty.
-
-### 2. EIP-7702 Session Keys
-We use the new EIP-7702 standard to grant temporary, granular permissions to agents without requiring users to migrate to a new smart contract wallet.
-
-### 3. Native Superchain Interop
-Assets move between Optimism chains in a single block using the Superchain token standard, enabling instant arbitrage.
+### Q3: Ecosystem Expansion
+- [ ] **Nexus SDK**: TypeScript/Python SDK for developers to easily register and monetize agents.
+- [ ] **Mainnet Launch**: Full deployment on Optimism Superchain Mainnet.
+- [ ] **Grant Program**: Funding for top strategy developers building on NexusFlow.
 
 ---
 
-## 📄 License
+## 🛠️ Technology Stack
 
-MIT
+- **Smart Contracts**: Solidity, Foundry
+- **Standards**: ERC-8004 (Agent Identity), EIP-7702 (Delegation), ERC-721
+- **Frameworks**: Next.js, Wagmi, Viem
+- **Identity**: World ID (Proof of Personhood)
+- **Deployment**: Vercel (Frontend), Alchemy (RPC/Indexing)
 
----
-
-**Team**: NexusFlow
-**Event**: 2026 Ethereum x Optimism Hackathon
+<div align="center">
+Built with ❤️ for the Future of Work
+</div>

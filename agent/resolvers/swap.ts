@@ -1,5 +1,5 @@
 import { encodeFunctionData, parseUnits, type Hex } from "viem";
-import { BASE_TOKENS, SwapIntent } from "../intents";
+import { BASE_TOKENS, SwapIntent, normalizeToken } from "../intents";
 
 const ZERO_X_API_BASE = "https://base.api.0x.org";
 
@@ -27,7 +27,7 @@ export interface SwapResult {
  * Get token address from symbol
  */
 function getTokenAddress(symbol: string): Hex {
-  const normalized = symbol.toUpperCase();
+  const normalized = normalizeToken(symbol);
   const address = BASE_TOKENS[normalized];
   if (!address) {
     throw new Error(`Unknown token: ${symbol}`);
@@ -39,8 +39,8 @@ function getTokenAddress(symbol: string): Hex {
  * Get token decimals (simplified - real impl should query contract)
  */
 function getTokenDecimals(symbol: string): number {
-  const normalized = symbol.toUpperCase();
-  if (normalized === "USDC" || normalized === "USDT") return 6;
+  const normalized = normalizeToken(symbol);
+  if (normalized === "NUSD" || normalized === "USDC" || normalized === "USDT") return 6;
   if (normalized === "WBTC") return 8;
   return 18; // ETH, WETH, DAI
 }
@@ -57,6 +57,38 @@ export async function getSwapQuote(intent: SwapIntent): Promise<SwapResult> {
   try {
     const sellToken = getTokenAddress(intent.tokenIn);
     const buyToken = getTokenAddress(intent.tokenOut);
+    const normOut = normalizeToken(intent.tokenOut);
+    const normIn = normalizeToken(intent.tokenIn);
+    
+    if (normOut === "NUSD") {
+      const sellDecimals = getTokenDecimals(intent.tokenIn);
+      const buyDecimals = getTokenDecimals(intent.tokenOut);
+      
+      const rate = normIn === "ETH" ? 2500 : 1;
+      const amountIn = parseFloat(intent.amountIn);
+      const mockBuyAmount = parseUnits((amountIn * rate).toString(), buyDecimals).toString();
+      const sellAmount = parseUnits(intent.amountIn, sellDecimals).toString();
+
+      const mockQuote: SwapQuote = {
+        price: rate.toString(),
+        guaranteedPrice: (rate * 0.995).toString(),
+        to: "0xDef1C0ded9bec7F1a1670819833240f027b25EfF",
+        data: "0x",
+        value: normIn === "ETH" ? sellAmount : "0",
+        gas: "150000",
+        gasPrice: "1000000000",
+        buyAmount: mockBuyAmount,
+        sellAmount: sellAmount,
+        sources: [{ name: "Nexus Liquidity Hub", proportion: "1.0" }],
+      };
+
+      return {
+        success: true,
+        quote: mockQuote,
+        calldata: "0x",
+      };
+    }
+
     const decimals = getTokenDecimals(intent.tokenIn);
     const sellAmount = parseUnits(intent.amountIn, decimals).toString();
 

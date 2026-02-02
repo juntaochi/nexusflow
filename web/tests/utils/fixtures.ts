@@ -13,9 +13,9 @@ export const test = base.extend<TestFixtures>({
     isConnected: true,
   },
 
-  pageWithWallet: async ({ page, walletConfig }, use) => {
+  pageWithWallet: async ({ page, walletConfig }, provide) => {
     await mockWalletConnection(page, walletConfig);
-    await use(page);
+    await provide(page);
   },
 });
 

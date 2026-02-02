@@ -59,7 +59,7 @@ function createLLM(config: ParserConfig) {
   }
   return new ChatOpenAI({
     apiKey: config.apiKey || process.env.OPENAI_API_KEY,
-    model: config.model || "gpt-4o-mini",
+    model: config.model || "gpt-5-nano-2025-08-07",
     temperature: 0,
   });
 }

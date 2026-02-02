@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ConnectButton } from '@/components/wallet/ConnectButton';
-import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 
 const NAV_LINKS = [
   { name: 'Dashboard', href: '/dashboard' },
@@ -21,7 +20,7 @@ export function Header() {
       <div className="max-w-7xl mx-auto flex items-center justify-between p-2 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl">
         <div className="flex items-center gap-8 pl-4">
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded bg-primary group-hover:shadow-[0_0_15px_rgba(0,255,255,0.5)] transition-all" />
+            <div className="w-8 h-8 rounded bg-primary group-hover:shadow-[0_0_15px_rgba(255,4,32,0.5)] transition-all" />
             <span className="font-black text-xl tracking-tighter uppercase text-white">NexusFlow</span>
           </Link>
 
@@ -43,8 +42,6 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-4">
-          <ThemeSwitcher />
-          <div className="h-6 w-[1px] bg-white/10 mx-2" />
           <ConnectButton />
         </div>
       </div>
