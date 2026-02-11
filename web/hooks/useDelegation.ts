@@ -70,6 +70,7 @@ export function use7702() {
         verifyingContract: contractAddress,
       } as const;
 
+<<<<<<< Updated upstream:web/hooks/useDelegation.ts
       const types = {
         Delegation: [
           { name: 'delegate', type: 'address' },
@@ -95,6 +96,15 @@ export function use7702() {
       } catch (error) {
         console.error("Signature rejected:", error);
         throw error;
+=======
+        if (errorCode === -32601 || errorMessage.includes('not exist') || errorMessage.includes('not available')) {
+          console.warn('Wallet does not support eth_signDelegation. Using Dev Stub signature.');
+          // Generate a fake but valid-looking signature for the demo flow
+          signature = '0x' + 'a'.repeat(130); 
+        } else {
+          throw rpcError;
+        }
+>>>>>>> Stashed changes:web/src/hooks/use7702.ts
       }
 
       const state: DelegationState = {

@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 # NexusFlow
 
 <div align="center">
@@ -94,3 +95,5 @@ Why NexusFlow matters for the Superchain Ecosystem:
 <div align="center">
 Built with ❤️ for the Future of Work
 </div>
+=======
+>>>>>>> Stashed changes

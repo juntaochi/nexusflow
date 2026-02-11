@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",
+<<<<<<< Updated upstream
     "useDefineForClassFields": true,
     "lib": [
       "ES2020",
@@ -8,6 +9,10 @@
       "DOM.Iterable"
     ],
     "module": "ESNext",
+=======
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+>>>>>>> Stashed changes
     "skipLibCheck": true,
     "strict": true,
     "noImplicitAny": true,
