@@ -1,18 +1,12 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-<<<<<<< Updated upstream
-    "useDefineForClassFields": true,
     "lib": [
-      "ES2020",
-      "DOM",
-      "DOM.Iterable"
+      "dom",
+      "dom.iterable",
+      "esnext"
     ],
-    "module": "ESNext",
-=======
-    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
->>>>>>> Stashed changes
     "skipLibCheck": true,
     "strict": true,
     "noImplicitAny": true,
@@ -27,6 +21,7 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
+    "module": "ESNext",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
@@ -39,7 +34,6 @@
         "./*"
       ]
     },
-    "allowJs": true,
     "incremental": true,
     "plugins": [
       {

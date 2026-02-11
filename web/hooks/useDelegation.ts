@@ -60,9 +60,8 @@ export function use7702() {
 
     setIsSigning(true);
     try {
-      // Use signTypedData to simulate EIP-7702 delegation for wide wallet compatibility
       let signature: string;
-      
+
       const domain = {
         name: 'NexusFlow Delegation',
         version: '1',
@@ -70,7 +69,6 @@ export function use7702() {
         verifyingContract: contractAddress,
       } as const;
 
-<<<<<<< Updated upstream:web/hooks/useDelegation.ts
       const types = {
         Delegation: [
           { name: 'delegate', type: 'address' },
@@ -80,7 +78,7 @@ export function use7702() {
       } as const;
 
       const message = {
-        delegate: '0x5D26552Fe617460250e68e737F2A60eA6402eEA9' as `0x${string}`, 
+        delegate: '0x5D26552Fe617460250e68e737F2A60eA6402eEA9' as `0x${string}`,
         nonce: 0n,
         expiry: BigInt(Date.now() + durationHours * 60 * 60 * 1000),
       };
@@ -93,18 +91,17 @@ export function use7702() {
           primaryType: 'Delegation',
           message,
         });
-      } catch (error) {
-        console.error("Signature rejected:", error);
-        throw error;
-=======
+      } catch (rpcError: unknown) {
+        const errorCode = (rpcError as { code?: number })?.code;
+        const errorMessage = (rpcError as { message?: string })?.message || '';
+
         if (errorCode === -32601 || errorMessage.includes('not exist') || errorMessage.includes('not available')) {
           console.warn('Wallet does not support eth_signDelegation. Using Dev Stub signature.');
           // Generate a fake but valid-looking signature for the demo flow
-          signature = '0x' + 'a'.repeat(130); 
+          signature = '0x' + 'a'.repeat(130);
         } else {
           throw rpcError;
         }
->>>>>>> Stashed changes:web/src/hooks/use7702.ts
       }
 
       const state: DelegationState = {

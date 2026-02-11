@@ -30,6 +30,8 @@
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.174.0",
     "@worldcoin/idkit": "^2.4.2",
+    "@x402/core": "^2.3.0",
+    "@x402/evm": "^2.3.0",
     "autoprefixer": "^10.4.24",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.29.2",
