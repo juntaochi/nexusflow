@@ -1,15 +1,19 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useWalletClient, useAccount } from 'wagmi';
+import { useEffect, useState } from 'react';
+import { useWalletClient, useAccount, useReadContract, useChainId } from 'wagmi';
 import { Hex } from 'viem';
+import { nexusDelegationConfig } from '@/lib/contracts/nexus-delegation';
+import { CONTRACTS, CHAINS } from '@/lib/contracts';
 
 /**
- * use7702 provides hooks for EIP-7702 delegation signatures.
+ * use7702 provides hooks for EIP-7702 delegation signatures
+ * with on-chain verification against the NexusDelegation contract.
  */
 export function use7702() {
   const { address } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const chainId = useChainId();
   const [isSigning, setIsSigning] = useState(false);
 
   const storageKey = 'nexusflow:delegation:7702:v1';
@@ -23,6 +27,44 @@ export function use7702() {
   };
 
   const [delegation, setDelegation] = useState<DelegationState | null>(null);
+
+  // Determine correct contract address based on chain
+  const isOp = chainId === CHAINS.OP_SEPOLIA;
+  const delegationAddress = isOp
+    ? (CONTRACTS.nexusDelegation as any).opSepolia?.address
+    : CONTRACTS.nexusDelegation.address;
+
+  const contractConfig = {
+    ...nexusDelegationConfig,
+    address: delegationAddress,
+  };
+
+  // On-chain reads
+  const { data: isSessionKeyActive, isLoading: isLoadingSession } = useReadContract({
+    ...contractConfig,
+    functionName: 'sessionKeys',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  });
+
+  const { data: onChainExpiry, isLoading: isLoadingExpiry } = useReadContract({
+    ...contractConfig,
+    functionName: 'sessionKeyExpiry',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  });
+
+  const { data: remainingAllowance } = useReadContract({
+    ...contractConfig,
+    functionName: 'getRemainingDailyAllowance',
+    query: { enabled: !!address },
+  });
+
+  const { data: dailyLimit } = useReadContract({
+    ...contractConfig,
+    functionName: 'dailyLimit',
+    query: { enabled: !!address },
+  });
 
   useEffect(() => {
     if (!address) {
@@ -46,14 +88,14 @@ export function use7702() {
     }
   }, [address]);
 
-  const hasDelegated = useMemo(() => {
-    if (!delegation) return false;
-    return Date.now() <= delegation.expiresAt;
-  }, [delegation]);
+  // Derive delegation status from on-chain state with localStorage fallback
+  const chainVerified = isSessionKeyActive === true;
+  const localOnly = !chainVerified && delegation !== null && Date.now() <= delegation.expiresAt;
+  const hasDelegated = chainVerified || localOnly;
+  const isVerifying = isLoadingSession || isLoadingExpiry;
 
   /**
    * Triggers the eth_signDelegation signature for a specific contract.
-   * Note: As of early 2026, this is the standard way to prepare 7702 transactions.
    */
   const signDelegation = async (contractAddress: Hex, durationHours: number = 24) => {
     if (!walletClient || !address) return;
@@ -97,7 +139,6 @@ export function use7702() {
 
         if (errorCode === -32601 || errorMessage.includes('not exist') || errorMessage.includes('not available')) {
           console.warn('Wallet does not support eth_signDelegation. Using Dev Stub signature.');
-          // Generate a fake but valid-looking signature for the demo flow
           signature = '0x' + 'a'.repeat(130);
         } else {
           throw rpcError;
@@ -143,5 +184,10 @@ export function use7702() {
     delegation,
     hasDelegated,
     clearDelegation,
+    chainVerified,
+    isVerifying,
+    onChainExpiry: onChainExpiry as bigint | undefined,
+    remainingAllowance: remainingAllowance as bigint | undefined,
+    dailyLimit: dailyLimit as bigint | undefined,
   };
 }

@@ -1,10 +1,23 @@
 'use client';
 
 import { WorldIDVerify } from '@/components/identity/WorldIDVerify';
+import { useWorldID } from '@/hooks/useWorldID';
 import { motion } from 'framer-motion';
 import { ShieldCheck, UserCircle } from 'lucide-react';
 
 export default function VerifyPage() {
+  const { isBypassed, setVerified } = useWorldID();
+
+  const setMockVerification = () => {
+    const mockProof = {
+      merkle_root: '0xmock',
+      nullifier_hash: '0xmock',
+      proof: '0xmock',
+      verification_level: 'device'
+    };
+    setVerified(mockProof);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--theme-bg)]">
       <motion.div 
@@ -39,24 +52,14 @@ export default function VerifyPage() {
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Zero-Knowledge Privacy Protected</span>
              </div>
 
-             <button 
-                onClick={() => {
-                  const mockProof = {
-                    merkle_root: '0xmock',
-                    nullifier_hash: '0xmock',
-                    proof: '0xmock',
-                    verification_level: 'device'
-                  };
-                  window.localStorage.setItem('world-id-storage', JSON.stringify({
-                    state: { isVerified: true, proof: mockProof },
-                    version: 0
-                  }));
-                  window.location.reload();
-                }}
-                className="w-full py-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-600 hover:text-primary/50 transition-colors"
-             >
-                Dev Mode: Bypass Verification (Testnet Only)
-             </button>
+             {isBypassed && (
+               <button
+                  onClick={setMockVerification}
+                  className="w-full py-2 text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/70 hover:text-amber-400 transition-colors"
+               >
+                  Dev Mode: Bypass Verification (Testnet Only)
+               </button>
+             )}
           </div>
         </div>
       </motion.div>

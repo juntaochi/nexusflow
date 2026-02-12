@@ -19,6 +19,12 @@ const getStorage = () => {
   return localStorage;
 };
 
+// Check if bypass is enabled (only in development)
+const isBypassEnabled = () => {
+  if (typeof window === 'undefined') return false;
+  return process.env.NEXT_PUBLIC_BYPASS_WORLDID === 'true';
+};
+
 export const useWorldIDStore = create<WorldIDState>()(
   persist(
     (set) => ({
@@ -33,3 +39,15 @@ export const useWorldIDStore = create<WorldIDState>()(
     }
   )
 );
+
+// Hook that respects bypass setting
+export function useWorldID() {
+  const store = useWorldIDStore();
+  const bypass = isBypassEnabled();
+
+  return {
+    ...store,
+    isVerified: bypass ? true : store.isVerified,
+    isBypassed: bypass,
+  };
+}

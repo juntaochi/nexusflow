@@ -141,12 +141,17 @@ export function generateMockCreatorEarnings(): CreatorEarnings {
     createdAt: Date.now() - Math.floor(randomRange(86400000 * 7, 86400000 * 180)),
   }));
 
+  // Generate cumulative earnings (monotonically increasing)
+  let cumulative = 0;
   const earningsHistory = Array.from({ length: 30 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - (29 - i));
+    // Daily earnings increase with some variance, always positive
+    const dailyEarning = randomRange(5, 50);
+    cumulative += dailyEarning;
     return {
       date: date.toISOString().split('T')[0],
-      earnings: randomRange(5, 50),
+      earnings: cumulative,
     };
   });
 
@@ -156,8 +161,8 @@ export function generateMockCreatorEarnings(): CreatorEarnings {
   return {
     totalEarnings,
     todayEarnings,
-    weeklyEarnings: earningsHistory.slice(-7).reduce((sum, d) => sum + d.earnings, 0),
-    monthlyEarnings: earningsHistory.reduce((sum, d) => sum + d.earnings, 0),
+    weeklyEarnings: earningsHistory[earningsHistory.length - 1].earnings - earningsHistory[earningsHistory.length - 8].earnings,
+    monthlyEarnings: earningsHistory[earningsHistory.length - 1].earnings,
     earningsHistory,
     agents,
   };

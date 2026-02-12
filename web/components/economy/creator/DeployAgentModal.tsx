@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Rocket, Bot, Sparkles, AlertCircle, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 import { useAgentRegistry } from '@/hooks/useAgentRegistry';
-import { useWorldIDStore } from '@/hooks/useWorldID';
+import { useWorldID } from '@/hooks/useWorldID';
 import { AgentCategory } from '@/types/economy';
 import { CategoryBadge } from '../shared';
 
@@ -26,7 +26,7 @@ export function DeployAgentModal({ isOpen, onClose, onSuccess }: DeployAgentModa
   const [error, setError] = useState<string | null>(null);
 
   const { registerAgent, myAgentCount } = useAgentRegistry();
-  const { isVerified } = useWorldIDStore();
+  const { isVerified } = useWorldID();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

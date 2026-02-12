@@ -4,10 +4,11 @@ import { use7702 } from '@/hooks/useDelegation';
 import { useChainSwitch } from '@/hooks/useChainSwitch';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Lock, Zap, Clock, AlertCircle, Activity } from 'lucide-react';
+import { Shield, Lock, Zap, Clock, AlertCircle, Activity, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { formatEther } from 'viem';
 
 export default function DelegationPage() {
-  const { signDelegation, isSigning, hasDelegated, delegation, clearDelegation } = use7702();
+  const { signDelegation, isSigning, hasDelegated, delegation, clearDelegation, chainVerified, isVerifying, onChainExpiry, remainingAllowance, dailyLimit } = use7702();
   const { isBase } = useChainSwitch();
   const [contractAddress, setContractAddress] = useState<string>('');
   const [duration, setDuration] = useState(24); // Default 24 hours
@@ -70,10 +71,23 @@ export default function DelegationPage() {
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-1">
                             <span className="font-black text-emerald-400 uppercase tracking-widest text-xs">Sandbox Active</span>
-                            <span className="text-[10px] font-bold text-emerald-500/60 uppercase tracking-widest">EIP-7702 Verified</span>
+                            <span className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${
+                              isVerifying ? 'text-gray-400' : chainVerified ? 'text-emerald-500/60' : 'text-amber-500/60'
+                            }`}>
+                              {isVerifying ? (
+                                <><Loader2 className="w-3 h-3 animate-spin" /> Verifying...</>
+                              ) : chainVerified ? (
+                                <><CheckCircle2 className="w-3 h-3" /> On-Chain Verified</>
+                              ) : (
+                                <><AlertTriangle className="w-3 h-3" /> Local Only</>
+                              )}
+                            </span>
                           </div>
                           <p className="text-sm text-white/90 font-medium mb-3">
-                            Your EOA has been upgraded to a Smart Account via Delegation.
+                            {chainVerified
+                              ? 'Session key verified on-chain. Your EOA delegation is active.'
+                              : 'Signed locally. Session key not yet confirmed on-chain.'
+                            }
                           </p>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="bg-black/20 p-3 rounded-xl border border-white/5">
@@ -84,15 +98,40 @@ export default function DelegationPage() {
                                <div className="text-[10px] font-bold text-gray-500 uppercase mb-1 tracking-widest">Expiry</div>
                                <div className="text-xs font-mono text-gray-300">
                                  {(() => {
+                                   if (onChainExpiry && onChainExpiry > 0n) {
+                                     const expiryMs = Number(onChainExpiry) * 1000;
+                                     if (expiryMs <= Date.now()) return 'Expired (on-chain)';
+                                     const diff = expiryMs - Date.now();
+                                     const hours = Math.floor(diff / (1000 * 60 * 60));
+                                     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                                     return `${hours}h ${minutes}m (on-chain)`;
+                                   }
                                    if (delegation.expiresAt <= Date.now()) return 'Expired';
                                    const diff = delegation.expiresAt - Date.now();
                                    const hours = Math.floor(diff / (1000 * 60 * 60));
                                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                                   return `Expires in ${hours}h ${minutes}m`;
+                                   return `${hours}h ${minutes}m (local)`;
                                  })()}
                                </div>
                             </div>
                           </div>
+
+                          {(dailyLimit !== undefined || remainingAllowance !== undefined) && (
+                            <div className="grid grid-cols-2 gap-4 mt-4">
+                              <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                                <div className="text-[10px] font-bold text-gray-500 uppercase mb-1 tracking-widest">Daily Limit</div>
+                                <div className="text-xs font-mono text-gray-300">
+                                  {dailyLimit !== undefined ? `${formatEther(dailyLimit)} ETH` : '--'}
+                                </div>
+                              </div>
+                              <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                                <div className="text-[10px] font-bold text-gray-500 uppercase mb-1 tracking-widest">Remaining Today</div>
+                                <div className="text-xs font-mono text-gray-300">
+                                  {remainingAllowance !== undefined ? `${formatEther(remainingAllowance)} ETH` : '--'}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                      </div>
 

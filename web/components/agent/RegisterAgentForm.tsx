@@ -2,17 +2,21 @@
 
 import { useState } from 'react';
 import { useAgentRegistry } from '@/hooks/useAgentRegistry';
-import { useWorldIDStore } from '@/hooks/useWorldID';
+import { useWorldID } from '@/hooks/useWorldID';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export function RegisterAgentForm() {
+interface RegisterAgentFormProps {
+  onSuccess?: () => void;
+}
+
+export function RegisterAgentForm({ onSuccess }: RegisterAgentFormProps) {
   const [name, setName] = useState('');
   const [metadataURI, setMetadataURI] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { registerAgent } = useAgentRegistry();
-  const { isVerified } = useWorldIDStore();
+  const { isVerified } = useWorldID();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +29,10 @@ export function RegisterAgentForm() {
     setError(null);
 
     try {
-      await registerAgent(name, metadataURI);
+      await registerAgent(name, metadataURI || `ipfs://nexusflow/agent/${name.toLowerCase().replace(/\s+/g, '-')}`);
+      setName('');
+      setMetadataURI('');
+      onSuccess?.();
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to register agent');
@@ -54,13 +61,14 @@ export function RegisterAgentForm() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-400 mb-2">Metadata URI (IPFS/URL)</label>
+        <label className="block text-sm font-medium text-gray-400 mb-2">
+          Metadata URI <span className="text-gray-600">(Optional)</span>
+        </label>
         <input
           type="text"
           value={metadataURI}
           onChange={(e) => setMetadataURI(e.target.value)}
-          required
-          placeholder="ipfs://..."
+          placeholder="ipfs://... (auto-generated if empty)"
           className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-primary/50 transition-colors"
         />
       </div>

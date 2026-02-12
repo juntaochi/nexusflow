@@ -78,3 +78,83 @@ test('theme variables and surface styles are applied', async ({ page }) => {
   expect(parseFloat(headerPaddingLeft)).toBeGreaterThan(0);
   expect(parseFloat(headerPaddingTop)).toBeGreaterThan(0);
 });
+
+test('verify page still exposes World ID popup trigger when already verified', async ({ page }) => {
+  await page.addInitScript(() => {
+    const proof = {
+      merkle_root: '0xmock',
+      nullifier_hash: '0xmock',
+      proof: '0xmock',
+      verification_level: 'device',
+    };
+
+    window.localStorage.setItem(
+      'world-id-storage',
+      JSON.stringify({
+        state: { isVerified: true, proof },
+        version: 0,
+      })
+    );
+  });
+
+  await page.goto('/verify');
+
+  const reverifyButton = page.getByRole('button', { name: /re-verify with world id/i });
+  await expect(reverifyButton).toBeVisible();
+  await expect(reverifyButton).toBeEnabled();
+});
+
+test('verify page opens an accessible World ID dialog', async ({ page }) => {
+  await page.goto('/verify');
+
+  const verifyButton = page.getByRole('button', { name: /verify with world id/i });
+  await verifyButton.click();
+
+  await expect(page.getByRole('dialog', { name: /verify with world id/i })).toBeVisible();
+});
+
+test('console keeps separate sessions per agent when switching', async ({ page }) => {
+  await page.goto('/console');
+
+  const strategyHubButton = page.getByRole('button', { name: /strategy hub/i });
+  await strategyHubButton.click();
+
+  await expect(page.getByText('Primary Coordinator: Strategy Hub (#402)')).toBeVisible();
+
+  await page
+    .getByPlaceholder('Ask Strategy Hub to execute strategy...')
+    .fill('Rebalance my portfolio');
+
+  await page.getByRole('button', { name: /execute/i }).click();
+  await expect(page.getByText('Coordinating with Strategy Hub (#402)...')).toBeVisible();
+
+  const liquidityNodeButton = page.getByRole('button', { name: /liquidity node/i });
+  await liquidityNodeButton.click();
+  await expect(page.getByText('Primary Coordinator: Liquidity Node (#801)')).toBeVisible();
+  await expect(page.getByText('No commands yet for this agent session.')).toBeVisible();
+  await expect(page.getByText('Coordinating with Strategy Hub (#402)...')).toHaveCount(0);
+
+  await strategyHubButton.click();
+  await expect(page.getByText('Primary Coordinator: Strategy Hub (#402)')).toBeVisible();
+  await expect(page.getByText('Coordinating with Strategy Hub (#402)...')).toBeVisible();
+});
+
+test('console session persists after leaving and returning to page', async ({ page }) => {
+  await page.goto('/console');
+
+  const strategyHubButton = page.getByRole('button', { name: /strategy hub/i });
+  await strategyHubButton.click();
+
+  await page
+    .getByPlaceholder('Ask Strategy Hub to execute strategy...')
+    .fill('Keep this session after navigation');
+
+  await page.getByRole('button', { name: /execute/i }).click();
+  await expect(page.getByText('> Keep this session after navigation')).toBeVisible();
+
+  await page.goto('/');
+  await page.goto('/console');
+
+  await expect(page.getByText('Primary Coordinator: Strategy Hub (#402)')).toBeVisible();
+  await expect(page.getByText('> Keep this session after navigation')).toBeVisible();
+});

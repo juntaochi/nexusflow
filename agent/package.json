@@ -7,6 +7,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "npx ts-node index.ts",
+    "server": "npx ts-node server.ts",
+    "server:dev": "npx ts-node-dev --respawn server.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "cron:start": "npx ts-node cron/index.ts start",
     "cron:check": "npx ts-node cron/index.ts check"

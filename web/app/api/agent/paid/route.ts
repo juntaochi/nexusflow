@@ -15,6 +15,38 @@ const proxyRateLimitMax = Number(process.env.AGENT_PROXY_RATE_LIMIT_MAX ?? 20);
 const requiredProxyApiKey = process.env.AGENT_PROXY_API_KEY?.trim() || "";
 const upstreamAgentApiKey = process.env.AGENT_SERVER_API_KEY?.trim() || "";
 
+// Demo mode - simulates agent responses when no backend is available
+const DEMO_MODE = !process.env.AGENT_SERVER_URL;
+
+function createDemoStream(intent: string, agentId?: string, agentName?: string): ReadableStream {
+  const encoder = new TextEncoder();
+  const coordinatorLabel = agentName
+    ? `${agentName}${agentId ? ` (#${agentId})` : ""}`
+    : `Agent #${agentId || "801"}`;
+
+  const demoResponses = [
+    { event: 'agent', message: `Analyzing intent: "${intent}"`, delay: 500 },
+    { event: 'agent', message: 'Querying on-chain liquidity pools...', delay: 800 },
+    { event: 'tool', message: 'Fetching prices from Uniswap V3, Curve, Balancer...', delay: 600 },
+    { event: 'agent', message: `${coordinatorLabel} found optimal route via Uniswap V3`, delay: 700 },
+    { event: 'agent', message: 'Simulating transaction... Gas estimate: 0.002 ETH', delay: 500 },
+    { event: 'agent', message: 'x402 payment verified (0.01 NUSD)', delay: 400 },
+    { event: 'agent', message: `Task complete. Ready for execution when you confirm.`, delay: 300 },
+    { event: 'end', message: 'Stream complete', delay: 100 },
+  ];
+
+  return new ReadableStream({
+    async start(controller) {
+      for (const response of demoResponses) {
+        await new Promise(resolve => setTimeout(resolve, response.delay));
+        const sseMessage = `event: ${response.event}\ndata: ${JSON.stringify({ message: response.message })}\n\n`;
+        controller.enqueue(encoder.encode(sseMessage));
+      }
+      controller.close();
+    },
+  });
+}
+
 const getClientIp = (request: NextRequest): string => {
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) {
@@ -103,8 +135,25 @@ export async function POST(request: NextRequest) {
     }
 
     const intent = (body as { intent?: unknown })?.intent;
+    const agentIdRaw = (body as { agentId?: unknown })?.agentId;
+    const agentNameRaw = (body as { agentName?: unknown })?.agentName;
+    const agentId = typeof agentIdRaw === "string" && agentIdRaw.trim() ? agentIdRaw.trim() : undefined;
+    const agentName =
+      typeof agentNameRaw === "string" && agentNameRaw.trim() ? agentNameRaw.trim() : undefined;
+
     if (typeof intent !== "string" || intent.trim().length === 0) {
       return NextResponse.json({ error: "Intent is required" }, { status: 400 });
+    }
+
+    // Demo mode - return simulated responses when no backend is configured
+    if (DEMO_MODE) {
+      return new Response(createDemoStream(intent, agentId, agentName), {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
+      });
     }
 
     const agentServerUrl = process.env.AGENT_SERVER_URL || "http://localhost:8080/execute";
@@ -116,7 +165,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch(agentServerUrl, {
       method: "POST",
       headers,
-      body: JSON.stringify({ intent }),
+      body: JSON.stringify({ intent, agentId, agentName }),
     });
 
     if (!response.ok) {

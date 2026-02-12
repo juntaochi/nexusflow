@@ -12,23 +12,206 @@ interface LogMessage {
   timestamp: number;
 }
 
+type PaymentStatus = 'idle' | 'pending' | 'paid';
+
+interface ActiveAgent {
+  id: string;
+  name: string;
+  status: 'ready' | 'active';
+  type: string;
+}
+
+interface AgentSessionState {
+  logs: LogMessage[];
+  paymentStatus: PaymentStatus;
+  sessionLabel: string;
+}
+
+const ACTIVE_AGENTS: ActiveAgent[] = [
+  { id: '402', name: 'Strategy Hub', status: 'ready', type: 'Yield Optimizer' },
+  { id: '801', name: 'Liquidity Node', status: 'active', type: 'Dex Aggregator' },
+  { id: 'Nexus', name: 'Identity Oracle', status: 'ready', type: 'ERC-8004 Registry' },
+];
+const CONSOLE_STORAGE_KEY = 'agent-console-sessions-storage';
+const DEFAULT_AGENT_ID =
+  ACTIVE_AGENTS.find((agent) => agent.status === 'active')?.id ?? ACTIVE_AGENTS[0]?.id ?? '';
+
+const createDefaultSession = (agentId: string): AgentSessionState => ({
+  logs: [],
+  paymentStatus: 'idle',
+  sessionLabel: `session-${agentId.toLowerCase()}`,
+});
+
+const createInitialSessions = () =>
+  ACTIVE_AGENTS.reduce<Record<string, AgentSessionState>>((acc, agent) => {
+    acc[agent.id] = createDefaultSession(agent.id);
+    return acc;
+  }, {});
+
+const createInitialDrafts = () =>
+  ACTIVE_AGENTS.reduce<Record<string, string>>((acc, agent) => {
+    acc[agent.id] = '';
+    return acc;
+  }, {});
+
+const isValidPaymentStatus = (value: unknown): value is PaymentStatus =>
+  value === 'idle' || value === 'pending' || value === 'paid';
+
+const normalizePersistedLogs = (rawLogs: unknown): LogMessage[] => {
+  if (!Array.isArray(rawLogs)) return [];
+
+  return rawLogs
+    .map((rawLog) => {
+      if (!rawLog || typeof rawLog !== 'object') return null;
+      const type = (rawLog as { type?: unknown }).type;
+      const content = (rawLog as { content?: unknown }).content;
+      const timestamp = (rawLog as { timestamp?: unknown }).timestamp;
+      const validType =
+        type === 'info' || type === 'success' || type === 'error' || type === 'agent';
+
+      if (!validType || typeof content !== 'string') return null;
+
+      return {
+        type,
+        content,
+        timestamp: typeof timestamp === 'number' ? timestamp : Date.now(),
+      } as LogMessage;
+    })
+    .filter((log): log is LogMessage => !!log)
+    .slice(-200);
+};
+
+const normalizePersistedSessions = (rawSessions: unknown): Record<string, AgentSessionState> => {
+  const normalized = createInitialSessions();
+  if (!rawSessions || typeof rawSessions !== 'object') return normalized;
+
+  for (const agent of ACTIVE_AGENTS) {
+    const rawSession = (rawSessions as Record<string, unknown>)[agent.id];
+    if (!rawSession || typeof rawSession !== 'object') continue;
+
+    const logs = normalizePersistedLogs((rawSession as { logs?: unknown }).logs);
+    const rawStatus = (rawSession as { paymentStatus?: unknown }).paymentStatus;
+    const rawLabel = (rawSession as { sessionLabel?: unknown }).sessionLabel;
+
+    normalized[agent.id] = {
+      logs,
+      paymentStatus: isValidPaymentStatus(rawStatus) ? rawStatus : 'idle',
+      sessionLabel:
+        typeof rawLabel === 'string' && rawLabel.trim()
+          ? rawLabel
+          : createDefaultSession(agent.id).sessionLabel,
+    };
+  }
+
+  return normalized;
+};
+
+const normalizePersistedDrafts = (rawDrafts: unknown): Record<string, string> => {
+  const normalized = createInitialDrafts();
+  if (!rawDrafts || typeof rawDrafts !== 'object') return normalized;
+
+  for (const agent of ACTIVE_AGENTS) {
+    const rawDraft = (rawDrafts as Record<string, unknown>)[agent.id];
+    if (typeof rawDraft === 'string') {
+      normalized[agent.id] = rawDraft.slice(0, 2000);
+    }
+  }
+
+  return normalized;
+};
+
 export function AgentConsole() {
-  const [input, setInput] = useState('');
-  const [logs, setLogs] = useState<LogMessage[]>([]);
+  const [agentSessions, setAgentSessions] = useState<Record<string, AgentSessionState>>(
+    createInitialSessions
+  );
+  const [draftInputs, setDraftInputs] = useState<Record<string, string>>(createInitialDrafts);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'paid'>('idle');
-  const [activeAgents] = useState([
-    { id: '402', name: 'Strategy Hub', status: 'ready', type: 'Yield Optimizer' },
-    { id: '801', name: 'Liquidity Node', status: 'active', type: 'Dex Aggregator' },
-    { id: 'Nexus', name: 'Identity Oracle', status: 'ready', type: 'ERC-8004 Registry' }
-  ]);
+  const [processingAgentId, setProcessingAgentId] = useState<string | null>(null);
+  const [selectedAgentId, setSelectedAgentId] = useState(DEFAULT_AGENT_ID);
+  const [hasHydratedFromStorage, setHasHydratedFromStorage] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   const { hasAgent, reputation } = useAgentRegistry();
-  const { hasDelegated } = use7702();
+  const { hasDelegated, chainVerified } = use7702();
+  const selectedAgent =
+    ACTIVE_AGENTS.find((agent) => agent.id === selectedAgentId) ?? ACTIVE_AGENTS[0];
+  const selectedSession = selectedAgent
+    ? agentSessions[selectedAgent.id] ?? createDefaultSession(selectedAgent.id)
+    : createDefaultSession('unknown');
+  const input = selectedAgent ? draftInputs[selectedAgent.id] ?? '' : '';
+  const processingAgent = processingAgentId
+    ? ACTIVE_AGENTS.find((agent) => agent.id === processingAgentId)
+    : undefined;
 
-  const addLog = (type: LogMessage['type'], content: string) => {
-    setLogs(prev => [...prev, { type, content, timestamp: Date.now() }]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const rawStorage = window.localStorage.getItem(CONSOLE_STORAGE_KEY);
+      if (!rawStorage) {
+        setHasHydratedFromStorage(true);
+        return;
+      }
+
+      const parsed = JSON.parse(rawStorage) as {
+        selectedAgentId?: unknown;
+        agentSessions?: unknown;
+        draftInputs?: unknown;
+      };
+
+      setAgentSessions(normalizePersistedSessions(parsed.agentSessions));
+      setDraftInputs(normalizePersistedDrafts(parsed.draftInputs));
+
+      const persistedSelectedAgentId = parsed.selectedAgentId;
+      if (
+        typeof persistedSelectedAgentId === 'string' &&
+        ACTIVE_AGENTS.some((agent) => agent.id === persistedSelectedAgentId)
+      ) {
+        setSelectedAgentId(persistedSelectedAgentId);
+      }
+    } catch (error) {
+      console.warn('Failed to hydrate agent console session from storage:', error);
+    } finally {
+      setHasHydratedFromStorage(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydratedFromStorage || typeof window === 'undefined') return;
+
+    const payload = {
+      selectedAgentId,
+      agentSessions,
+      draftInputs,
+      updatedAt: Date.now(),
+    };
+    window.localStorage.setItem(CONSOLE_STORAGE_KEY, JSON.stringify(payload));
+  }, [selectedAgentId, agentSessions, draftInputs, hasHydratedFromStorage]);
+
+  const addLog = (agentId: string, type: LogMessage['type'], content: string) => {
+    setAgentSessions((prev) => {
+      const current = prev[agentId] ?? createDefaultSession(agentId);
+      return {
+        ...prev,
+        [agentId]: {
+          ...current,
+          logs: [...current.logs, { type, content, timestamp: Date.now() }],
+        },
+      };
+    });
+  };
+
+  const setAgentPaymentStatus = (agentId: string, paymentStatus: PaymentStatus) => {
+    setAgentSessions((prev) => {
+      const current = prev[agentId] ?? createDefaultSession(agentId);
+      return {
+        ...prev,
+        [agentId]: {
+          ...current,
+          paymentStatus,
+        },
+      };
+    });
   };
 
   const scrollToBottom = () => {
@@ -37,26 +220,40 @@ export function AgentConsole() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [logs]);
+  }, [selectedAgentId, selectedSession.logs.length]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isProcessing) return;
+    if (!input.trim() || isProcessing || !selectedAgent) return;
 
-    const userIntent = input;
-    setInput('');
+    const submittingAgent = selectedAgent;
+    const userIntent = input.trim();
+    setDraftInputs((prev) => ({ ...prev, [submittingAgent.id]: '' }));
     setIsProcessing(true);
-    setPaymentStatus('pending');
-    addLog('info', `> ${userIntent}`);
+    setProcessingAgentId(submittingAgent.id);
+    setAgentPaymentStatus(submittingAgent.id, 'pending');
+    addLog(submittingAgent.id, 'info', `> ${userIntent}`);
 
     try {
-      addLog('agent', 'Coordinating with Agent #801 (Liquidity Node)...');
-      addLog('agent', 'Agent #801 requested x402 payment (0.01 NUSD)...');
+      addLog(
+        submittingAgent.id,
+        'agent',
+        `Coordinating with ${submittingAgent.name} (#${submittingAgent.id})...`
+      );
+      addLog(
+        submittingAgent.id,
+        'agent',
+        `${submittingAgent.name} requested x402 payment (0.01 NUSD)...`
+      );
       
       const response = await fetch('/api/agent/paid', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ intent: userIntent }),
+        body: JSON.stringify({
+          intent: userIntent,
+          agentId: submittingAgent.id,
+          agentName: submittingAgent.name,
+        }),
       });
 
       if (!response.body) throw new Error("No response body");
@@ -80,25 +277,32 @@ export function AgentConsole() {
               const data = JSON.parse(dataMatch[1]);
               
               if (line.includes('event: agent')) {
-                addLog('agent', data.message);
+                addLog(submittingAgent.id, 'agent', data.message);
               } else if (line.includes('event: tool')) {
-                addLog('info', `[Tool Call]: ${data.message.length > 200 ? data.message.slice(0, 200) + "..." : data.message}`);
+                addLog(
+                  submittingAgent.id,
+                  'info',
+                  `[Tool Call]: ${data.message.length > 200 ? data.message.slice(0, 200) + "..." : data.message}`
+                );
               } else if (line.includes('event: error')) {
-                addLog('error', data.message);
+                addLog(submittingAgent.id, 'error', data.message);
               } else if (line.includes('event: end')) {
-                setPaymentStatus('paid');
+                setAgentPaymentStatus(submittingAgent.id, 'paid');
               }
-            } catch (err) {
+            } catch {
               continue;
             }
           }
         }
       }
-    } catch (error) {
-      addLog('error', 'Communication error with agent swarm.');
+    } catch {
+      addLog(submittingAgent.id, 'error', 'Communication error with agent swarm.');
     } finally {
       setIsProcessing(false);
-      setPaymentStatus('idle');
+      setProcessingAgentId(null);
+      setTimeout(() => {
+        setAgentPaymentStatus(submittingAgent.id, 'idle');
+      }, 1200);
     }
   };
 
@@ -133,20 +337,38 @@ export function AgentConsole() {
             <Globe className="w-4 h-4" /> Agent Swarm
           </h3>
           <div className="space-y-3">
-            {activeAgents.map(agent => (
-              <div key={agent.id} className="flex items-center gap-3">
+            {ACTIVE_AGENTS.map(agent => {
+              const isSelected = agent.id === selectedAgent.id;
+              return (
+              <button
+                type="button"
+                key={agent.id}
+                onClick={() => setSelectedAgentId(agent.id)}
+                aria-pressed={isSelected}
+                className={`w-full flex items-center gap-3 rounded-xl p-2 transition-colors border ${
+                  isSelected
+                    ? 'border-primary/50 bg-primary/10'
+                    : 'border-transparent hover:bg-white/5'
+                }`}
+              >
                 <div className="relative">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${agent.status === 'active' ? 'bg-primary/20 text-primary' : 'bg-white/5 text-gray-500'}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSelected ? 'bg-primary/20 text-primary' : 'bg-white/5 text-gray-500'}`}>
                     <Bot className="w-4 h-4" />
                   </div>
-                  {agent.status === 'active' && <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full border-2 border-[var(--theme-surface)] animate-pulse" />}
+                  {isSelected && <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full border-2 border-[var(--theme-surface)] animate-pulse" />}
                 </div>
-                <div className="min-w-0">
-                  <div className="text-[10px] font-bold text-white truncate">{agent.name}</div>
+                <div className="min-w-0 flex-1 text-left">
+                  <div className="text-[10px] font-bold text-white truncate flex items-center justify-between gap-2">
+                    <span>{agent.name}</span>
+                    {isSelected && (
+                      <span className="text-[8px] uppercase tracking-wider text-primary">Active</span>
+                    )}
+                  </div>
                   <div className="text-[8px] text-[var(--theme-text-muted)] uppercase tracking-tighter">{agent.type}</div>
                 </div>
-              </div>
-            ))}
+              </button>
+              );
+            })}
           </div>
         </div>
 
@@ -156,8 +378,8 @@ export function AgentConsole() {
           </h3>
           <div className="flex items-center justify-between text-sm mb-2">
             <span className="text-[var(--theme-text-muted)]">EIP-7702</span>
-            <span className={hasDelegated ? "text-green-400 font-bold" : "text-[var(--theme-text-muted)]"}>
-              {hasDelegated ? "Active" : "Inactive"}
+            <span className={chainVerified ? "text-green-400 font-bold" : hasDelegated ? "text-amber-400 font-bold" : "text-[var(--theme-text-muted)]"}>
+              {chainVerified ? "Active (Chain Verified)" : hasDelegated ? "Active (Local)" : "Inactive"}
             </span>
           </div>
           {!hasDelegated && (
@@ -173,10 +395,15 @@ export function AgentConsole() {
           </h3>
           <div className="flex items-center justify-between text-sm">
              <span className="text-[var(--theme-text-muted)]">Status</span>
-             <span className={`font-bold ${paymentStatus === 'paid' ? 'text-green-400' : 'text-[var(--theme-text-muted)]'}`}>
-                {paymentStatus === 'idle' ? 'Ready' : paymentStatus === 'pending' ? 'Verifying...' : 'Paid'}
+             <span className={`font-bold ${selectedSession.paymentStatus === 'paid' ? 'text-green-400' : 'text-[var(--theme-text-muted)]'}`}>
+                {selectedSession.paymentStatus === 'idle' ? 'Ready' : selectedSession.paymentStatus === 'pending' ? 'Verifying...' : 'Paid'}
              </span>
           </div>
+          {isProcessing && processingAgentId && processingAgentId !== selectedAgent.id && (
+            <div className="mt-2 text-[10px] text-amber-400">
+              Active request in {processingAgent?.name || `Agent #${processingAgentId}`}.
+            </div>
+          )}
         </div>
       </div>
 
@@ -186,14 +413,22 @@ export function AgentConsole() {
         <div className="flex-1 overflow-y-auto p-6 space-y-4 font-mono text-sm relative z-20">
           <div className="text-gray-500 mb-4">
             NexusFlow Agent Swarm Runtime v1.0.0-alpha<br/>
-            Network: 3 Active Agents Online<br/>
+            Network: {ACTIVE_AGENTS.length} Active Agents Online<br/>
+            Primary Coordinator: {selectedAgent.name} (#{selectedAgent.id})<br/>
+            Session: {selectedSession.sessionLabel}<br/>
             Type a command to begin...
           </div>
-          
+
+          {selectedSession.logs.length === 0 && (
+            <div className="text-gray-600 mb-4">
+              No commands yet for this agent session.
+            </div>
+          )}
+
           <AnimatePresence>
-            {logs.map((log, i) => (
+            {selectedSession.logs.map((log, i) => (
               <motion.div
-                key={i}
+                key={`${log.timestamp}-${i}`}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 className={`flex gap-3 ${
@@ -224,8 +459,13 @@ export function AgentConsole() {
               <input
                 type="text"
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Swap 1 ETH for NUSD..."
+                onChange={(e) =>
+                  setDraftInputs((prev) => ({
+                    ...prev,
+                    [selectedAgent.id]: e.target.value,
+                  }))
+                }
+                placeholder={`Ask ${selectedAgent.name} to execute strategy...`}
                 className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white font-mono focus:outline-none focus:border-primary/50 transition-colors placeholder:text-gray-700"
                 autoFocus
               />
