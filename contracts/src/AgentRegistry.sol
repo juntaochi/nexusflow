@@ -10,19 +10,20 @@ import "openzeppelin-contracts/contracts/utils/Pausable.sol";
  * @title AgentRegistry
  * @notice ERC-8004 compliant registry for trustless AI agents.
  * @dev Implements agent registration (ERC721), reputation tracking, and discovery.
+ *      One wallet can register multiple agents (per ERC-8004 spec).
  */
 contract AgentRegistry is IERC8004, ERC721URIStorage, Ownable2Step, Pausable {
 
     uint256 private _nextAgentId = 1;
 
     mapping(uint256 => AgentProfile) private _agents;
-    mapping(address => uint256) public agentIdByController;
+    mapping(address => uint256[]) public agentsByController; // Changed: array of agent IDs
     mapping(uint256 => int256) public reputationScores;
-    
+
     // Validation storage
     mapping(address => bool) public allowedValidators;
     mapping(uint256 => mapping(address => ValidationAttestation)) public attestations;
-    
+
     // Threshold for reputation to be considered trusted without validation
     int256 public constant TRUST_THRESHOLD = 10;
 
@@ -35,16 +36,17 @@ contract AgentRegistry is IERC8004, ERC721URIStorage, Ownable2Step, Pausable {
 
     /**
      * @notice Register a new agent.
+     * @dev One wallet can register multiple agents (per ERC-8004 spec).
      * @param name Human-readable agent name.
      * @param metadataURI URI pointing to agent metadata (IPFS, HTTP, etc.).
      * @return agentId The unique ID assigned to this agent.
      */
     function registerAgent(string calldata name, string calldata metadataURI) external whenNotPaused returns (uint256 agentId) {
         require(bytes(name).length > 0, "Name cannot be empty");
-        require(agentIdByController[msg.sender] == 0, "Controller already has an agent");
-        
+        // Removed: require(agentIdByController[msg.sender] == 0) - one wallet can have multiple agents
+
         agentId = _nextAgentId++;
-        
+
         // Mint ERC721 Identity
         _safeMint(msg.sender, agentId);
         _setTokenURI(agentId, metadataURI);
@@ -55,10 +57,10 @@ contract AgentRegistry is IERC8004, ERC721URIStorage, Ownable2Step, Pausable {
             controller: msg.sender,
             validated: false
         });
-        
-        agentIdByController[msg.sender] = agentId;
+
+        agentsByController[msg.sender].push(agentId);
         reputationScores[agentId] = 0;
-        
+
         emit AgentRegistered(agentId, msg.sender, name);
     }
 
@@ -73,6 +75,24 @@ contract AgentRegistry is IERC8004, ERC721URIStorage, Ownable2Step, Pausable {
     }
 
     /**
+     * @notice Get all agent IDs owned by a controller.
+     * @param controller The controller address.
+     * @return agentIds Array of agent IDs.
+     */
+    function getAgentsByController(address controller) external view returns (uint256[] memory agentIds) {
+        return agentsByController[controller];
+    }
+
+    /**
+     * @notice Get the number of agents owned by a controller.
+     * @param controller The controller address.
+     * @return count Number of agents.
+     */
+    function getAgentCount(address controller) external view returns (uint256 count) {
+        return agentsByController[controller].length;
+    }
+
+    /**
      * @notice Submit feedback with evidence (Reputation Signal).
      * @param agentId The agent's unique ID.
      * @param delta +1 or -1 (or weighted).
@@ -84,9 +104,9 @@ contract AgentRegistry is IERC8004, ERC721URIStorage, Ownable2Step, Pausable {
         // For demo simplicity, we allow multiple feedbacks but restrict delta size
         require(delta >= -10 && delta <= 10, "Delta out of range");
         require(_agents[agentId].controller != msg.sender, "Cannot vote for own agent");
-        
+
         reputationScores[agentId] += delta;
-        
+
         emit ReputationSignal(agentId, msg.sender, delta, jobHash, evidenceURI);
     }
 
@@ -99,7 +119,7 @@ contract AgentRegistry is IERC8004, ERC721URIStorage, Ownable2Step, Pausable {
      */
     function attest(uint256 agentId, bytes32 jobHash, bool ok, string calldata evidenceURI) external {
         require(allowedValidators[msg.sender], "Not an allowed validator");
-        
+
         attestations[agentId][msg.sender] = ValidationAttestation({
             ok: ok,
             jobHash: jobHash,
@@ -153,11 +173,11 @@ contract AgentRegistry is IERC8004, ERC721URIStorage, Ownable2Step, Pausable {
      */
     function updateAgent(uint256 agentId, string calldata name, string calldata metadataURI) external onlyController(agentId) {
         require(bytes(name).length > 0, "Name cannot be empty");
-        
+
         _agents[agentId].name = name;
         _agents[agentId].metadataURI = metadataURI;
         _setTokenURI(agentId, metadataURI);
-        
+
         emit AgentURIUpdated(agentId, metadataURI);
     }
 
@@ -170,12 +190,12 @@ contract AgentRegistry is IERC8004, ERC721URIStorage, Ownable2Step, Pausable {
     }
 
     /**
-     * @notice Check if an address has a registered agent.
+     * @notice Check if an address has any registered agents.
      * @param controller The address to check.
-     * @return exists True if the address has an agent.
+     * @return exists True if the address has at least one agent.
      */
     function hasAgent(address controller) external view returns (bool exists) {
-        return agentIdByController[controller] != 0;
+        return agentsByController[controller].length > 0;
     }
 
     /**

@@ -47,13 +47,23 @@ contract AgentRegistryTest is Test {
         registry.registerAgent("", "ipfs://QmTest123");
     }
 
-    function test_RegisterAgent_Revert_AlreadyRegistered() public {
-        vm.prank(agent1);
-        registry.registerAgent("Agent 1", "ipfs://Qm1");
-        
-        vm.prank(agent1);
-        vm.expectRevert("Controller already has an agent");
-        registry.registerAgent("Agent 2", "ipfs://Qm2");
+    function test_RegisterMultipleAgents_SameController() public {
+        vm.startPrank(agent1);
+        uint256 id1 = registry.registerAgent("Agent 1", "ipfs://Qm1");
+        uint256 id2 = registry.registerAgent("Agent 2", "ipfs://Qm2");
+        uint256 id3 = registry.registerAgent("Agent 3", "ipfs://Qm3");
+        vm.stopPrank();
+
+        assertEq(id1, 1);
+        assertEq(id2, 2);
+        assertEq(id3, 3);
+        assertEq(registry.getAgentCount(agent1), 3);
+
+        uint256[] memory agentIds = registry.getAgentsByController(agent1);
+        assertEq(agentIds.length, 3);
+        assertEq(agentIds[0], 1);
+        assertEq(agentIds[1], 2);
+        assertEq(agentIds[2], 3);
     }
 
     function test_UpdateReputation_Upvote() public {
@@ -143,17 +153,22 @@ contract AgentRegistryTest is Test {
         registry.getAgent(999);
     }
 
-    function test_MultipleAgents() public {
+    function test_MultipleAgents_DifferentControllers() public {
         vm.prank(agent1);
         uint256 id1 = registry.registerAgent("Agent One", "ipfs://Qm1");
-        
+
         vm.prank(agent2);
         uint256 id2 = registry.registerAgent("Agent Two", "ipfs://Qm2");
-        
+
         assertEq(id1, 1);
         assertEq(id2, 2);
         assertEq(registry.agentCount(), 2);
-        assertEq(registry.agentIdByController(agent1), 1);
-        assertEq(registry.agentIdByController(agent2), 2);
+
+        uint256[] memory agent1Ids = registry.getAgentsByController(agent1);
+        uint256[] memory agent2Ids = registry.getAgentsByController(agent2);
+        assertEq(agent1Ids.length, 1);
+        assertEq(agent2Ids.length, 1);
+        assertEq(agent1Ids[0], 1);
+        assertEq(agent2Ids[0], 2);
     }
 }

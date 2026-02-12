@@ -3,5 +3,5 @@ import { CONTRACTS } from '../contracts';
 
 export const agentRegistryConfig = {
   address: CONTRACTS.agentRegistry.address,
-  abi: AgentRegistryABI.abi,
+  abi: AgentRegistryABI,
 };
