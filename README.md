@@ -50,7 +50,25 @@ Status: Done (section: Technical Description)
 Status: Done ([NexusFlow Canva Deck](https://www.canva.com/design/DAHBE1wW2pM/zjKP3F3WZkztF9MMI457Rg/edit?utm_content=DAHBE1wW2pM&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton))
 
 7. README must include demo assets + blockchain explanation  
-Status: Partially done; fill missing links below before final submission
+Status: Done (demo links + blockchain explanation included below)
+
+## Pre-existing Code Disclosure (Hackathon Rule Compliance)
+
+Per EasyA rules, we disclose that this submission reuses pre-existing code.
+
+- Official hackathon start reference: Feb 11, 2026, 09:00 HKT
+- Pre-existing baseline commit range: `646233896` (2026-01-29) to `5c3846395` (2026-02-02)
+- Reused parts from pre-existing work:
+  - Initial project scaffolding and package/tooling setup across `contracts/`, `web/`, and `agent/`
+  - Early smart contract and frontend foundations used as baseline
+  - Standard open-source integrations declared in manifests (e.g. OpenZeppelin, Wagmi, RainbowKit, World ID Kit, x402, LangChain, Coinbase AgentKit)
+- Work completed during hackathon window commit range: `dfe5d89e2` to `06f6c957e` (2026-02-11 to 2026-02-12)
+- Hackathon-window additions include:
+  - x402 integration updates and dashboard improvements
+  - Agent Economy dashboard and multi-agent registry updates
+  - Final demo, slides, and submission documentation updates
+
+This section is our written disclosure. We will also provide in-person disclosure to organizers per event rules.
 
 ## Technical Description
 
