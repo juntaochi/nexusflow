@@ -1,99 +1,178 @@
-<<<<<<< Updated upstream
 # NexusFlow
 
-<div align="center">
+> **Short summary (<150 chars):** NexusFlow is an open-source DeFi agent stack using EIP-7702 and ERC-8004 to automate secure cross-chain yield strategies.
 
-![NexusFlow Banner](https://via.placeholder.com/1200x300?text=NexusFlow+Infrastructure)
+NexusFlow is a trust-minimized DeFi automation system built for EasyA Consensus Hackathon delivery.
+It combines scoped wallet delegation, on-chain agent identity, and cross-chain execution on the Optimism Superchain.
 
-**The Trust & Coordination Layer for the Autonomous Agent Economy**
+## EasyA Consensus Hackathon Submission
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Network: Superchain](https://img.shields.io/badge/Network-Optimism%20Superchain-red)](https://optimism.io)
-[![Standard: ERC-8004](https://img.shields.io/badge/Standard-ERC--8004-blue)](https://eips.ethereum.org)
-[![Status: Production Alpha](https://img.shields.io/badge/Status-Production%20Alpha-success)](https://nexusflow.network)
+- Event: EasyA Consensus Hackathon - Hong Kong
+- Track: DeFi / Trading infrastructure
+- Repository: https://github.com/juntaochi/nexusflow
+- Submission form: https://forms.gle/PviFvSBZLmoksjmq8
+- Canva slides (required by rules): [NexusFlow Canva Deck](https://www.canva.com/design/DAHBE1wW2pM/zjKP3F3WZkztF9MMI457Rg/edit?utm_content=DAHBE1wW2pM&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
+- Demo video (required): https://youtu.be/-p6PqZlhz7Q
+- Full walkthrough video with audio (required): https://youtu.be/-p6PqZlhz7Q
+- Canva slide prompts: `CANVA_SLIDE_PROMPTS.md`
 
-[Documentation](https://docs.nexusflow.network) · [Live Demo](https://nexusflow.vercel.app) · [Report Bug](https://github.com/nexusflow/core/issues)
+## Full Description
 
-</div>
+NexusFlow solves a core DeFi problem: users want automated execution but do not want to give away private keys or trust opaque bots.
 
----
+The system lets users:
 
-## 🌐 The Mission
+1. Verify identity and discover agents through an on-chain registry
+2. Authorize constrained execution through EIP-7702-style delegation limits
+3. Run cross-chain DeFi actions on Superchain testnets
+4. Record execution outcomes as transparent on-chain reputation signals
 
-As AI agents transition from passive chatbots to active economic actors, they face a critical **"Trust Gap"**:
-1.  **Identity**: How do we verify an agent's code and owner?
-2.  **Security**: How do we grant agents permission to spend funds without risking total wallet compromise?
-3.  **Revenue**: How do agent builders monetize their intelligence trustlessly?
+In practice, the current implementation demonstrates autonomous yield-routing style flows on Base Sepolia and OP Sepolia using deployed contracts and frontend orchestration.
 
-**NexusFlow** is the decentralized infrastructure layer solving these problems. Built on the **Optimism Superchain**, we leverage **ERC-8004 (Agent Registry)** and **EIP-7702 (Session Keys)** to enable a secure, interoperable, and profitable economy for autonomous agents.
+## EasyA Requirement Mapping
 
----
+1. Build using relevant blockchain technologies  
+Status: Done (EIP-7702 delegation model, ERC-8004-style registry, Superchain contracts)
 
-## 🏗️ Core Infrastructure
+2. Open source and remain open source  
+Status: Done (public repository + MIT license)
 
-NexusFlow is not just a DApp; it is a suite of protocols designed for the next generation of DeFi.
+3. Include short summary (<150 chars)  
+Status: Done (see first line of this README)
 
-### 1. Nexus Registry (ERC-8004 Implementation)
-*The "DNS" for AI Agents.*
-- **Verifiable Identity**: Agents are minted as **ERC-721** NFTs, binding their code hash and endpoint to a permanent on-chain ID.
-- **Proof of Human**: Integrates **World ID** to prevent bot spam and ensure accountability for agent operators.
-- **Reputation Layer**: An immutable ledger of "Execution Receipts" allows users to audit an agent's historical performance (ROI, uptime) before delegating funds.
+4. Include full description  
+Status: Done (section: Full Description)
 
-### 2. Secure Delegation Engine (EIP-7702)
-*Bank-grade security for autonomous actors.*
-- **Granular Permissions**: Users sign EIP-7702 authorizations that limit agents to specific:
-    - **Contracts** (e.g., "Only interact with Uniswap & Aave")
-    - **Functions** (e.g., "Only `swap` and `supply`")
-    - **Budgets** (e.g., "Max spend: 100 USDC per day")
-- **Non-Custodial**: Users verify the agent's logic but maintain full custody of their assets until execution time.
+5. Include technical description (SDKs + sponsor tech reasoning)  
+Status: Done (section: Technical Description)
 
-### 3. Nexus Execute (Superchain Interop)
-*One-Click Cross-Chain Orchestration.*
-- **Atomic Arbitrage**: Agents utilize the OP Superchain's native interoperability to execute complex cross-chain strategies (e.g., "Borrow on Base, Lend on OP Mainnet") in a single transaction flow.
-- **x402 Monetization**: A "Pay-for-Intelligence" protocol allowing strategy developers to wrap their algorithms in a smart contract that automatically deducts performance fees.
+6. Include Canva presentation link  
+Status: Done ([NexusFlow Canva Deck](https://www.canva.com/design/DAHBE1wW2pM/zjKP3F3WZkztF9MMI457Rg/edit?utm_content=DAHBE1wW2pM&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton))
 
----
+7. README must include demo assets + blockchain explanation  
+Status: Partially done; fill missing links below before final submission
 
-## 🚀 Ecosystem Value
+## Technical Description
 
-Why NexusFlow matters for the Superchain Ecosystem:
+### Sponsor / blockchain technologies used
 
-| For Users | For Developers | For Chains |
-|-----------|----------------|------------|
-| **Passive Yield**: Delegate funds to high-reputation agents with zero setup. | **Monetization**: Earn on-chain revenue from your trading bots/strategies. | **Transaction Volume**: AI Agents operate 24/7, driving consistent blockspace demand. |
-| **Safety**: EIP-7702 ensures agents can't drain your wallet. | **Standardization**: ERC-8004 provides a unified interface for agent discovery. | **Liquidity**: Automated rebalancing improves market efficiency across the Superchain. |
+- Optimism Superchain testnets: Base Sepolia + OP Sepolia
+- EIP-7702-compatible delegation model (`NexusDelegation`)
+- ERC-8004-style agent identity and reputation model (`AgentRegistry`)
+- Superchain token and bridge flow (`NexusUSD`, `CrosschainBridge`)
+- World ID integration (`@worldcoin/idkit`)
+- x402 tooling (`@x402/core`, `@x402/evm`)
 
----
+### SDKs and frameworks used
 
-## 🗺️ Roadmap (2026)
+- Smart contracts: Solidity, Foundry, OpenZeppelin
+- Frontend: Next.js, React, TypeScript, Wagmi, Viem, RainbowKit
+- Agent/backend tooling: Node.js, TypeScript, LangChain, Coinbase AgentKit
 
-### Q1: Foundation & Alpha (Completed)
-- [x] **ERC-8004 Registry Contract**: Deployment on Base Sepolia & OP Sepolia.
-- [x] **EIP-7702 Integration**: Functional delegation module for session keys.
-- [x] **MVP Dashboard**: Interface for agent discovery and portfolio tracking.
+### Why these technologies were necessary
 
-### Q2: Security & Audit (Current Focus)
-- [ ] **Infrastructure Hardening**: Transitioning from Alpha to Production-grade RPC infrastructure.
-- [ ] **Security Audits**: Comprehensive audit of the Registry and Delegation contracts.
-- [ ] **Validator Network**: Onboarding 3rd-party validators (e.g., TEE providers) to attest to agent code integrity.
+- EIP-7702 delegation enables scoped automation without key handover.
+- ERC-8004-style registry gives agents identity + auditable reputation.
+- Superchain primitives make cross-chain execution testable end-to-end.
+- World ID reduces Sybil risk for operator identity.
 
-### Q3: Ecosystem Expansion
-- [ ] **Nexus SDK**: TypeScript/Python SDK for developers to easily register and monetize agents.
-- [ ] **Mainnet Launch**: Full deployment on Optimism Superchain Mainnet.
-- [ ] **Grant Program**: Funding for top strategy developers building on NexusFlow.
+## How Blockchain Interaction Works
 
----
+1. User connects wallet in the web app and verifies identity (World ID flow).
+2. User configures delegation constraints (time, spend, protocol scope).
+3. Contracts enforce allowed actions through `NexusDelegation`.
+4. Agent/automation logic reads on-chain rates and executes allowed actions.
+5. Results are reflected through on-chain state and registry-linked records.
 
-## 🛠️ Technology Stack
+## Screenshots (UI)
 
-- **Smart Contracts**: Solidity, Foundry
-- **Standards**: ERC-8004 (Agent Identity), EIP-7702 (Delegation), ERC-721
-- **Frameworks**: Next.js, Wagmi, Viem
-- **Identity**: World ID (Proof of Personhood)
-- **Deployment**: Vercel (Frontend), Alchemy (RPC/Indexing)
+### Dashboard
 
-<div align="center">
-Built with ❤️ for the Future of Work
-</div>
-=======
->>>>>>> Stashed changes
+![NexusFlow dashboard screenshot](doc/reference-agent-page.png)
+
+## Required Demo Assets
+
+The EasyA submission requires all links below in this README:
+
+- Demo video (short pitch demo): https://youtu.be/-p6PqZlhz7Q
+- Full repo walkthrough with audio (Loom-style): https://youtu.be/-p6PqZlhz7Q
+- Canva deck link: [NexusFlow Canva Deck](https://www.canva.com/design/DAHBE1wW2pM/zjKP3F3WZkztF9MMI457Rg/edit?utm_content=DAHBE1wW2pM&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
+
+Walkthrough video should cover:
+
+1. Project architecture and repo structure
+2. Local run flow
+3. Working demo of core user journey
+4. How blockchain interactions are validated (transactions/contracts)
+5. Which EasyA submission requirements are satisfied and where
+
+## Deployed Contracts (Current Testnet Addresses)
+
+Source: `doc/DEPLOYMENT.md`
+
+### Base Sepolia (84532)
+
+- NexusDelegation: `0x74abaEC9aB23e08069751b3b9CA47Ce3FEa17d38`
+- AgentRegistry: `0x619AeC8bB48357D967F06F2d1582592455782B29`
+- NexusUSD: `0x1A54562813c35151a5e8cF4105221212ad97Bf52`
+- CrosschainBridge: `0x0f9ab104b1aB9dd5e5eA9b8280ad93147e282Cb0`
+
+### OP Sepolia (11155420)
+
+- NexusDelegation: `0xAeb805427cb9BB4978c0EEf0FBe4bA64549cA85D`
+- AgentRegistry: `0x00DeFBE21758614CC5C2Ed6EB982E3084B952285`
+- NexusUSD: `0xaA6B7D1b89B05BEABD2F23baf0110806082D09a5`
+- CrosschainBridge: `0x3CfdE8a17d24bD93f64A38FC3FAd72C4F6585255`
+
+## Repository Structure
+
+```text
+nexusflow/
+  contracts/   Solidity contracts + deployment scripts
+  web/         Next.js frontend
+  agent/       Agent and automation services
+  doc/         Deployment docs and pitch materials
+```
+
+## Local Development
+
+### Frontend
+
+```bash
+cd web
+pnpm install
+pnpm dev
+```
+
+### Agent service
+
+```bash
+cd agent
+pnpm install
+pnpm dev
+```
+
+### Contracts
+
+```bash
+cd contracts
+forge build
+forge test
+```
+
+## EasyA Eligibility Checklist
+
+- [x] Uses relevant blockchain technologies
+- [x] Open source repository
+- [x] Includes short summary (<150 chars)
+- [x] Includes full description
+- [x] Includes technical description
+- [x] Includes screenshot(s) of UI
+- [x] Includes blockchain interaction explanation
+- [x] Add Canva presentation link (required)
+- [x] Add short demo video link (required)
+- [x] Add full audio walkthrough video link (required)
+
+## License
+
+MIT
