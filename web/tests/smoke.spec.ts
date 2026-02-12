@@ -113,6 +113,15 @@ test('verify page opens an accessible World ID dialog', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: /verify with world id/i })).toBeVisible();
 });
 
+test('verify page shows bypass control and hides zero-knowledge copy', async ({ page }) => {
+  await page.goto('/verify');
+
+  await expect(
+    page.getByRole('button', { name: /dev mode: bypass verification \(testnet only\)/i })
+  ).toBeVisible();
+  await expect(page.getByText(/zero-knowledge privacy protected/i)).toHaveCount(0);
+});
+
 test('console keeps separate sessions per agent when switching', async ({ page }) => {
   await page.goto('/console');
 

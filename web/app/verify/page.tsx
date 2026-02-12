@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { ShieldCheck, UserCircle } from 'lucide-react';
 
 export default function VerifyPage() {
-  const { isBypassed, setVerified } = useWorldID();
+  const { setVerified } = useWorldID();
 
   const setMockVerification = () => {
     const mockProof = {
@@ -49,17 +49,15 @@ export default function VerifyPage() {
           <div className="space-y-4 pt-6 border-t border-white/5">
              <div className="flex items-center gap-3 text-left p-3 rounded-xl bg-black/20 border border-white/5">
                 <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Zero-Knowledge Privacy Protected</span>
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Privacy-first verification flow</span>
              </div>
 
-             {isBypassed && (
-               <button
-                  onClick={setMockVerification}
-                  className="w-full py-2 text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/70 hover:text-amber-400 transition-colors"
-               >
-                  Dev Mode: Bypass Verification (Testnet Only)
-               </button>
-             )}
+             <button
+                onClick={setMockVerification}
+                className="w-full py-2 text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/70 hover:text-amber-400 transition-colors"
+             >
+                Dev Mode: Bypass Verification (Testnet Only)
+             </button>
           </div>
         </div>
       </motion.div>
